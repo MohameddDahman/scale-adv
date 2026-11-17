@@ -6,12 +6,14 @@ import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type For
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import type { PublicJob } from "@convex/lib/shape";
-import { publicConvex, readError, uploadWithProgress } from "@/lib/convex-public";
+import { cvUploadEndpoint, publicConvex, readError, uploadWithProgress } from "@/lib/convex-public";
 import { cn } from "@/lib/format";
+import { compressImage, ImageCompressError } from "@/lib/image-compress";
 import { tx, type Dictionary, type Locale } from "@/lib/i18n";
 import { describedBy, FormField } from "./FormField";
 
-const MAX_BYTES = 10 * 1024 * 1024;
+/** Matches MAX_CV_BYTES in convex/lib/storage.ts. Photos of a CV are shrunk before this check. */
+const MAX_BYTES = 5 * 1024 * 1024;
 const TYPES = [
   "application/pdf",
   "application/msword",
@@ -99,21 +101,25 @@ export function ApplicationForm({
   const isTalent = job?.type === "talent";
   const questions = job?.questions ?? [];
 
-  async function handleFile(file: File | undefined) {
-    if (!file) return;
+  async function handleFile(input: File | undefined) {
+    if (!input) return;
     setErrors(({ cv: _, ...rest }) => rest);
-    if (file.type && !TYPES.includes(file.type)) return setErrors((x) => ({ ...x, cv: e.fileType }));
-    if (file.size > MAX_BYTES) return setErrors((x) => ({ ...x, cv: e.fileSize }));
-    const client = publicConvex();
-    if (!client) return setErrors((x) => ({ ...x, cv: e.offline }));
-    setUploading({ name: file.name, progress: 0 });
+    if (input.type && !TYPES.includes(input.type)) return setErrors((x) => ({ ...x, cv: e.fileType }));
+    const endpoint = cvUploadEndpoint();
+    if (!endpoint) return setErrors((x) => ({ ...x, cv: e.offline }));
+    setUploading({ name: input.name, progress: 0 });
     try {
-      const url = await client.mutation(api.forms.generateUploadUrl, {});
-      const storageId = await uploadWithProgress(url, file, (p) => setUploading({ name: file.name, progress: p }));
+      // Phone photos of a CV are often 3–10 MB; a 2200 px JPEG stays readable at a fraction of that.
+      const file = input.type.startsWith("image/") ? (await compressImage(input, "document")).file : input;
+      if (file.size > MAX_BYTES) return setErrors((x) => ({ ...x, cv: e.fileSize }));
+      const storageId = await uploadWithProgress(endpoint, file, (p) => setUploading({ name: input.name, progress: p }));
       setCv({ storageId, name: file.name, size: file.size });
     } catch (err) {
+      if (err instanceof ImageCompressError) return setErrors((x) => ({ ...x, cv: e.fileType }));
       const r = readError(err);
-      setErrors((x) => ({ ...x, cv: r.code === "RATE_LIMITED" ? e.rate : e.upload }));
+      const message =
+        r.code === "RATE_LIMITED" ? e.rate : r.code === "FILE_SIZE" ? e.fileSize : r.code === "FILE_TYPE" ? e.fileType : e.upload;
+      setErrors((x) => ({ ...x, cv: message }));
     } finally {
       setUploading(null);
     }
@@ -152,7 +158,7 @@ export function ApplicationForm({
               : f === "portfolioUrl"
                 ? e.url
                 : f === "cv"
-                  ? err.message.includes("10 MB")
+                  ? err.message.includes("5 MB")
                     ? e.fileSize
                     : err.message.includes("PDF")
                       ? e.fileType

@@ -37,6 +37,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/format";
+import type { ImagePreset } from "@/lib/image-compress";
 import {
   BilingualInput,
   BilingualList,
@@ -45,9 +46,10 @@ import {
   MetricsEditor,
   QuestionBuilder,
   SlugInput,
+  StoredVideo,
   useStorageUrls,
-  VideoField,
 } from "./fields";
+import { Thumb } from "./media";
 import { errorField, errorMessage, useAdminMutation, useAdminQuery } from "./session";
 import {
   Badge,
@@ -82,7 +84,7 @@ export type FieldDef =
   | (Base & { kind: "select"; options: { value: string; label: string }[]; optional?: boolean })
   | (Base & { kind: "multiselect"; options: { value: string; label: string }[] })
   | (Base & { kind: "switch"; description?: string })
-  | (Base & { kind: "image"; pathName: string; aspect?: string })
+  | (Base & { kind: "image"; pathName: string; aspect?: string; preset?: ImagePreset })
   | (Base & { kind: "video" })
   | (Base & { kind: "slug"; source: string; prefix: string })
   | (Base & { kind: "reference"; source: "clients" })
@@ -349,8 +351,7 @@ function Row({
       <DragHandle handle={handle} />
       {config.thumb ? (
         <span className={cn("relative w-11 shrink-0 overflow-hidden rounded-[4px] border border-a-line bg-a-hover", config.thumbAspect ?? "aspect-square")}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {thumbUrl ? <img src={thumbUrl} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" /> : null}
+          {thumbUrl ? <Thumb src={thumbUrl} sizes="48px" /> : null}
         </span>
       ) : null}
       <Link href={`${config.basePath}/${doc._id}`} className="min-w-0 flex-1 rounded-[3px] outline-none hover:underline focus-visible:ring-2 focus-visible:ring-signal">
@@ -391,8 +392,7 @@ function GridCard({
   return (
     <div className="overflow-hidden rounded-[6px] border border-a-line">
       <Link href={`${config.basePath}/${doc._id}`} className={cn("relative block overflow-hidden bg-a-hover", config.thumbAspect ?? "aspect-[9/16]")}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        {thumbUrl ? <img src={thumbUrl} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" /> : null}
+        {thumbUrl ? <Thumb src={thumbUrl} sizes="(min-width: 1024px) 200px, 45vw" /> : null}
         {!doc.published ? (
           <span className="absolute start-2 top-2">
             <Badge tone="neutral">Hidden</Badge>
@@ -775,6 +775,7 @@ export function FieldControl({
             path={data[f.pathName]}
             aspect={f.aspect}
             hint={f.hint}
+            preset={f.preset}
             onChange={(next) => {
               set(f.name, next.storageId);
               set(f.pathName, next.path);
@@ -783,11 +784,12 @@ export function FieldControl({
         </Field>
       );
     case "video":
-      return (
+      // Only reels saved by an earlier version can still have a stored file; show it so it can be removed.
+      return value ? (
         <Field label={f.label} hint={f.hint} error={error}>
-          <VideoField storageId={value} onChange={(v) => set(f.name, v)} />
+          <StoredVideo storageId={value} onRemove={() => set(f.name, undefined)} />
         </Field>
-      );
+      ) : null;
     case "slug":
       return (
         <Field label={f.label} htmlFor={id} hint={f.hint} error={error} required>
@@ -853,8 +855,7 @@ function ReelReferences({ field, value, onChange }: { field: FieldDef; value: st
               <li key={r._id}>
                 <label className={cn("block cursor-pointer overflow-hidden rounded-[4px] border-2", checked ? "border-signal" : "border-transparent")}>
                   <span className="relative block aspect-[9/16] bg-a-hover">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {src ? <img src={src} alt="" className="absolute inset-0 size-full object-cover" /> : null}
+                    {src ? <Thumb src={src} sizes="120px" /> : null}
                     <input
                       type="checkbox"
                       className="absolute start-1.5 top-1.5 size-4 accent-[var(--color-signal)]"

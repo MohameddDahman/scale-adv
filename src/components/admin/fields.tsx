@@ -3,10 +3,11 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import type { Question, Text } from "@convex/lib/validators";
-import { ArrowDown, ArrowUp, ImageSquare, LinkSimple, Plus, Trash, UploadSimple, VideoCamera } from "@phosphor-icons/react";
+import { ArrowDown, ArrowUp, ImageSquare, LinkSimple, Plus, Trash, UploadSimple } from "@phosphor-icons/react";
 import { useId, useMemo, useState } from "react";
 import { cn } from "@/lib/format";
-import { MediaPicker, UploadProgress, useUploader } from "./media";
+import { IMAGE_PRESETS, type ImagePreset } from "@/lib/image-compress";
+import { MediaPicker, Thumb, UploadProgress, uploadedMessage, useUploader } from "./media";
 import { errorMessage, useAdminQuery } from "./session";
 import { Button, IconButton, Input, Select, Textarea, useFeedback } from "./ui";
 
@@ -125,12 +126,15 @@ export function ImageField({
   onChange,
   aspect = "aspect-square",
   hint,
+  preset = "library",
 }: {
   storageId?: string;
   path?: string;
   onChange: (next: { storageId?: Id<"_storage">; path?: string }) => void;
   aspect?: string;
   hint?: string;
+  /** How the image is used; decides the size it's shrunk to before upload. */
+  preset?: ImagePreset;
 }) {
   const urls = useStorageUrls([storageId]);
   const { upload, progress } = useUploader();
@@ -144,8 +148,7 @@ export function ImageField({
     <div className="flex flex-wrap items-start gap-4">
       <div className={cn("relative w-32 shrink-0 overflow-hidden rounded-[5px] border border-a-line bg-a-hover", aspect)}>
         {preview ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={preview} alt="" className="absolute inset-0 size-full object-cover" />
+          <Thumb src={preview} sizes="128px" />
         ) : (
           <span className="absolute inset-0 grid place-items-center text-a-faint">
             <ImageSquare className="size-7" aria-hidden />
@@ -169,9 +172,10 @@ export function ImageField({
                 e.target.value = "";
                 if (!file) return;
                 try {
-                  const up = await upload(file);
+                  const up = await upload(file, preset);
                   setLocalUrl(up.url);
                   onChange({ storageId: up.storageId, path: undefined });
+                  toast(uploadedMessage(up));
                 } catch (err) {
                   toast(errorMessage(err, "Upload failed."), "error");
                 }
@@ -200,11 +204,12 @@ export function ImageField({
           />
         ) : null}
         {hint ? <p className="text-[0.76rem] text-a-muted">{hint}</p> : null}
+        <p className="text-[0.72rem] text-a-faint">{IMAGE_PRESETS[preset].note}</p>
       </div>
       <MediaPicker
         open={picker}
         onOpenChange={setPicker}
-        kind="image"
+        preset={preset}
         onPick={(m) => {
           setLocalUrl(m.url);
           onChange({ storageId: m.storageId, path: undefined });
@@ -214,79 +219,30 @@ export function ImageField({
   );
 }
 
-export function VideoField({
-  storageId,
-  onChange,
-}: {
-  storageId?: string;
-  onChange: (id: Id<"_storage"> | undefined) => void;
-}) {
+/**
+ * Video files aren't kept in Convex: on the free plan a handful of reels
+ * would fill the storage, and every play would count against the monthly
+ * downloads. Reels use a link instead (Cloudinary, YouTube, Instagram).
+ * This only shows a video stored by an earlier version, so it can be removed.
+ */
+export function StoredVideo({ storageId, onRemove }: { storageId?: string; onRemove: () => void }) {
   const urls = useStorageUrls([storageId]);
-  const { upload, progress } = useUploader();
-  const { toast } = useFeedback();
-  const [picker, setPicker] = useState(false);
-  const [localUrl, setLocalUrl] = useState<string | null>(null);
-  const src = storageId ? (urls[storageId] ?? localUrl) : null;
-
+  if (!storageId) return null;
+  const src = urls[storageId] ?? null;
   return (
     <div className="flex flex-wrap items-start gap-4">
       <div className="relative aspect-[9/16] w-28 shrink-0 overflow-hidden rounded-[5px] border border-a-line bg-a-hover">
-        {src ? (
-          <video src={src} className="absolute inset-0 size-full object-cover" muted controls preload="metadata" />
-        ) : (
-          <span className="absolute inset-0 grid place-items-center text-a-faint">
-            <VideoCamera className="size-7" aria-hidden />
-          </span>
-        )}
+        {src ? <video src={src} className="absolute inset-0 size-full object-cover" muted controls preload="none" /> : null}
       </div>
       <div className="min-w-48 flex-1 space-y-2">
-        <div className="flex flex-wrap gap-2">
-          <label className="inline-flex">
-            <span className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-[4px] border border-a-line-strong bg-a-surface px-3 text-[0.8rem] font-semibold hover:bg-a-hover">
-              <UploadSimple className="size-4" aria-hidden />
-              Upload video
-            </span>
-            <input
-              type="file"
-              accept="video/mp4,video/webm,video/quicktime"
-              className="sr-only"
-              disabled={progress !== null}
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (!file) return;
-                if (file.size > 300 * 1024 * 1024) return toast("Videos must be under 300 MB. Export a smaller file for the web.", "error");
-                try {
-                  const up = await upload(file, { compress: false });
-                  setLocalUrl(up.url);
-                  onChange(up.storageId);
-                } catch (err) {
-                  toast(errorMessage(err, "Upload failed."), "error");
-                }
-              }}
-            />
-          </label>
-          <Button size="sm" onClick={() => setPicker(true)}>
-            Library
-          </Button>
-          {storageId ? (
-            <Button size="sm" variant="ghost" className="text-a-danger" onClick={() => onChange(undefined)}>
-              Remove
-            </Button>
-          ) : null}
-        </div>
-        <UploadProgress progress={progress} />
-        <p className="text-[0.76rem] text-a-muted">MP4 (H.264) plays everywhere. Keep reels under ~60 MB for fast loading.</p>
+        <p className="text-[0.8rem] text-a-muted">
+          This reel still has a video file stored in the dashboard. Each play counts against the free plan&apos;s monthly downloads. Add a
+          link below, then remove the file.
+        </p>
+        <Button size="sm" variant="ghost" className="text-a-danger" onClick={onRemove}>
+          Remove video file
+        </Button>
       </div>
-      <MediaPicker
-        open={picker}
-        onOpenChange={setPicker}
-        kind="video"
-        onPick={(m) => {
-          setLocalUrl(m.url);
-          onChange(m.storageId);
-        }}
-      />
     </div>
   );
 }

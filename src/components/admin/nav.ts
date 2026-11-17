@@ -5,6 +5,7 @@ import {
   FilmStrip,
   GearSix,
   Handshake,
+  HardDrives,
   IdentificationCard,
   Images,
   Question,
@@ -53,6 +54,7 @@ export const NAV: { group: string | null; items: NavItem[] }[] = [
       { href: "/admin/testimonials", label: "Testimonials", icon: Quotes, perm: "content", keywords: "quotes reviews" },
       { href: "/admin/faqs", label: "FAQs", icon: Question, perm: "content", keywords: "questions" },
       { href: "/admin/media", label: "Media library", icon: Images, perm: "media", keywords: "uploads images files" },
+      { href: "/admin/storage", label: "Storage", icon: HardDrives, perm: "media", keywords: "space free plan quota cleanup cv files" },
     ],
   },
   {

@@ -23,7 +23,7 @@ import { use, useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/format";
 import { Kanban } from "../Kanban";
 import { formatBytes } from "../media";
-import { APP_STAGE, dateTime, downloadCsv, relativeTime, STAGE_ORDER, todayStamp, whatsappHref, type AppStageKey } from "../format";
+import { APP_STAGE, dateTime, downloadCsv, relativeTime, shortDate, STAGE_ORDER, todayStamp, whatsappHref, type AppStageKey } from "../format";
 import { errorMessage, useAdminMutation, useAdminPaginatedQuery, useAdminQuery, useSession } from "../session";
 import { Timeline } from "../Timeline";
 import {
@@ -488,6 +488,12 @@ export function ApplicationDetail({ params }: { params: Promise<{ id: string }> 
                   <p className="text-[0.84rem] text-a-muted">Word documents can’t be previewed here. Download to open it.</p>
                 )}
               </div>
+            ) : a.cvRemovedAt ? (
+              <p className="text-[0.84rem] text-a-muted">
+                The CV file ({a.cvName ?? "CV"}
+                {a.cvSize ? `, ${formatBytes(a.cvSize)}` : ""}) was deleted on {shortDate(a.cvRemovedAt)} to free up storage. Everything else in the
+                application is kept.
+              </p>
             ) : (
               <p className="text-[0.84rem] text-a-muted">No CV attached{a.portfolioUrl ? " — they shared a portfolio link instead." : "."}</p>
             )}

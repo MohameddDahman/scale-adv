@@ -31,7 +31,41 @@ export function readError(error: unknown): ServerError {
   return { code: "NETWORK", message: error instanceof Error ? error.message : "Something went wrong." };
 }
 
-/** Uploads a file to a Convex upload URL with progress reporting. Resolves with the storage id. */
+/**
+ * The CV upload endpoint (convex/http.ts). HTTP routes live on the
+ * deployment's ".convex.site" address; it's derived from the Convex URL when
+ * NEXT_PUBLIC_CONVEX_SITE_URL isn't set.
+ */
+export function cvUploadEndpoint(): string | null {
+  const explicit = process.env.NEXT_PUBLIC_CONVEX_SITE_URL;
+  const base = explicit || siteUrlFrom(process.env.NEXT_PUBLIC_CONVEX_URL);
+  return base ? `${base.replace(/\/+$/, "")}/cv` : null;
+}
+
+function siteUrlFrom(convexUrl: string | undefined): string | null {
+  if (!convexUrl) return null;
+  try {
+    const u = new URL(convexUrl);
+    if (u.hostname.endsWith(".convex.cloud")) {
+      u.hostname = u.hostname.replace(/\.convex\.cloud$/, ".convex.site");
+      return u.origin;
+    }
+    // Local backend: HTTP routes are served on the next port (3210 → 3211).
+    if (u.port) {
+      u.port = String(Number(u.port) + 1);
+      return u.origin;
+    }
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
+/**
+ * Uploads a file with progress reporting and resolves with the storage id.
+ * Works with Convex upload URLs and with the CV endpoint, whose refusals
+ * (too big, wrong type, too many uploads) come back as a ConvexError code.
+ */
 export function uploadWithProgress(url: string, file: File, onProgress?: (fraction: number) => void): Promise<string> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -41,15 +75,17 @@ export function uploadWithProgress(url: string, file: File, onProgress?: (fracti
       if (e.lengthComputable) onProgress?.(e.loaded / e.total);
     };
     xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          resolve(JSON.parse(xhr.responseText).storageId);
-        } catch {
-          reject(new Error("Unexpected upload response"));
-        }
-      } else reject(new Error(`Upload failed (${xhr.status})`));
+      let body: { storageId?: string; code?: string; message?: string } | null = null;
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        body = null;
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && body?.storageId) return resolve(body.storageId);
+      if (body?.code) return reject(new ConvexError({ code: body.code, message: body.message ?? "Upload failed." }));
+      reject(new Error(`Upload failed (${xhr.status})`));
     };
-    xhr.onerror = () => reject(new Error("Upload failed"));
+    xhr.onerror = () => reject(new Error("Upload failed: network error"));
     xhr.send(file);
   });
 }

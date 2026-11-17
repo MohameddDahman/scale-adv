@@ -2,55 +2,68 @@
 
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { CheckCircle, FilmStrip, ImageSquare, UploadSimple } from "@phosphor-icons/react";
+import { CheckCircle, ImageSquare, UploadSimple } from "@phosphor-icons/react";
+import { ConvexError } from "convex/values";
+import Image from "next/image";
 import { useCallback, useState } from "react";
 import { uploadWithProgress } from "@/lib/convex-public";
 import { cn } from "@/lib/format";
+import { compressImage, ImageCompressError, type ImagePreset } from "@/lib/image-compress";
+import { canOptimize } from "@/lib/image-url";
 import { errorMessage, useAdminMutation, useAdminPaginatedQuery } from "./session";
-import { Button, EmptyState, Modal, Segmented, Skeleton, useFeedback } from "./ui";
+import { Button, EmptyState, Modal, Skeleton, useFeedback } from "./ui";
 
-export type Uploaded = { storageId: Id<"_storage">; url: string | null; kind: "image" | "video" | "file"; mediaId: Id<"media"> };
+export type Uploaded = {
+  storageId: Id<"_storage">;
+  url: string | null;
+  mediaId: Id<"media">;
+  /** Stored size after compression. */
+  size: number;
+  /** Size of the file that was picked. */
+  originalBytes: number;
+  /** The same image was already in the library, so that copy was reused. */
+  reused: boolean;
+};
 
-/** Shrinks big photos to WebP before upload. Logos keep transparency; SVG/GIF pass through. */
-export async function compressImage(file: File, maxSize = 2200, quality = 0.86): Promise<{ file: File; width?: number; height?: number }> {
-  if (!file.type.startsWith("image/") || /svg|gif/.test(file.type)) return { file };
-  try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height));
-    const width = Math.round(bitmap.width * scale);
-    const height = Math.round(bitmap.height * scale);
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    canvas.getContext("2d")?.drawImage(bitmap, 0, 0, width, height);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", quality));
-    if (!blob || blob.size >= file.size) return { file, width: bitmap.width, height: bitmap.height };
-    const name = file.name.replace(/\.[a-z0-9]+$/i, "") + ".webp";
-    return { file: new File([blob], name, { type: "image/webp" }), width, height };
-  } catch {
-    return { file };
-  }
-}
+const invalid = (message: string) => new ConvexError({ code: "INVALID_FILE", message });
 
+export const VIDEO_NOT_STORED =
+  "Video files aren't stored in the dashboard. Upload the video to Cloudinary, YouTube or Instagram, then paste its link in the reel.";
+
+/**
+ * Uploads an image to the library. Every image is shrunk to its preset
+ * (src/lib/image-compress.ts) before it leaves the browser, and Convex
+ * refuses anything that skipped this step.
+ */
 export function useUploader() {
   const generate = useAdminMutation(api.media.generateUploadUrl);
   const create = useAdminMutation(api.media.create);
   const [progress, setProgress] = useState<number | null>(null);
 
   const upload = useCallback(
-    async (input: File, opts: { compress?: boolean } = {}): Promise<Uploaded> => {
+    async (input: File, preset: ImagePreset = "library"): Promise<Uploaded> => {
+      if (input.type.startsWith("video/")) throw invalid(VIDEO_NOT_STORED);
+      if (!input.type.startsWith("image/") && !/\.(svg|hei[cf])$/i.test(input.name)) {
+        throw invalid("Only images can be uploaded here (JPG, PNG, WebP or SVG).");
+      }
       setProgress(0);
       try {
-        const prepared = opts.compress === false ? { file: input } : await compressImage(input);
+        const prepared = await compressImage(input, preset);
         const url = await generate({});
         const storageId = (await uploadWithProgress(url, prepared.file, setProgress)) as Id<"_storage">;
-        const created = await create({
-          storageId,
-          name: input.name,
-          width: "width" in prepared ? prepared.width : undefined,
-          height: "height" in prepared ? prepared.height : undefined,
-        });
-        return { storageId, url: created.url, kind: created.kind, mediaId: created._id };
+        const created = await create({ storageId, name: prepared.file.name, width: prepared.width, height: prepared.height });
+        if (!created.ok) throw invalid(created.message);
+        return {
+          storageId: created.storageId,
+          url: created.url,
+          mediaId: created._id,
+          size: created.size,
+          originalBytes: prepared.originalBytes,
+          reused: created.reused,
+        };
+      } catch (error) {
+        if (error instanceof ImageCompressError) throw invalid(error.message);
+        throw error;
       } finally {
         setProgress(null);
       }
@@ -61,9 +74,25 @@ export function useUploader() {
   return { upload, progress, uploading: progress !== null };
 }
 
+/** Toast text after an upload, so people see what compression saved. */
+export function uploadedMessage(up: Uploaded) {
+  if (up.reused) return "Already in the library, so that copy was used (no extra space).";
+  if (up.originalBytes > up.size * 1.2) return `Uploaded · ${formatBytes(up.size)} (shrunk from ${formatBytes(up.originalBytes)})`;
+  return `Uploaded · ${formatBytes(up.size)}`;
+}
+
 export function formatBytes(n: number) {
+  if (n >= 1024 * 1024 * 1024) return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
   if (n >= 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
   return `${Math.max(1, Math.round(n / 1024))} KB`;
+}
+
+/**
+ * Dashboard thumbnails. Convex files go through Next's image optimizer, so
+ * browsing the library loads small cached copies instead of the originals.
+ */
+export function Thumb({ src, alt = "", sizes, className }: { src: string; alt?: string; sizes: string; className?: string }) {
+  return <Image src={src} alt={alt} fill sizes={sizes} unoptimized={!canOptimize(src)} className={cn("object-cover", className)} />;
 }
 
 /* --------------------------- Media picker -------------------------- */
@@ -71,15 +100,15 @@ export function formatBytes(n: number) {
 export function MediaPicker({
   open,
   onOpenChange,
-  kind,
+  preset = "library",
   onPick,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  kind: "image" | "video";
+  preset?: ImagePreset;
   onPick: (item: { storageId: Id<"_storage">; url: string | null }) => void;
 }) {
-  const { results, status, loadMore } = useAdminPaginatedQuery(api.media.list, open ? { kind } : "skip", { initialNumItems: 30 });
+  const { results, status, loadMore } = useAdminPaginatedQuery(api.media.list, open ? { kind: "image" } : "skip", { initialNumItems: 30 });
   const { upload, progress } = useUploader();
   const { toast } = useFeedback();
 
@@ -87,8 +116,8 @@ export function MediaPicker({
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title={kind === "image" ? "Choose an image" : "Choose a video"}
-      description="Pick something already uploaded, or upload a new file."
+      title="Choose an image"
+      description="Pick something already uploaded, or upload a new image."
       size="xl"
       footer={
         <label className="me-auto inline-flex">
@@ -99,14 +128,15 @@ export function MediaPicker({
           <input
             type="file"
             className="sr-only"
-            accept={kind === "image" ? "image/*" : "video/*"}
+            accept="image/*"
             disabled={progress !== null}
             onChange={async (e) => {
               const file = e.target.files?.[0];
               e.target.value = "";
               if (!file) return;
               try {
-                const up = await upload(file, { compress: kind === "image" });
+                const up = await upload(file, preset);
+                toast(uploadedMessage(up));
                 onPick({ storageId: up.storageId, url: up.url });
                 onOpenChange(false);
               } catch (err) {
@@ -124,11 +154,7 @@ export function MediaPicker({
           ))}
         </div>
       ) : results.length === 0 ? (
-        <EmptyState
-          icon={kind === "image" ? <ImageSquare className="size-6" aria-hidden /> : <FilmStrip className="size-6" aria-hidden />}
-          title="Nothing uploaded yet"
-          body="Use “Upload new” below."
-        />
+        <EmptyState icon={<ImageSquare className="size-6" aria-hidden />} title="Nothing uploaded yet" body="Use “Upload new” below." />
       ) : (
         <>
           <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5">
@@ -143,12 +169,7 @@ export function MediaPicker({
                   className="group block w-full cursor-pointer text-start"
                 >
                   <span className="relative block aspect-square overflow-hidden rounded-[4px] border border-a-line bg-a-hover">
-                    {m.url && m.kind === "image" ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={m.url} alt={m.alt ?? ""} className="size-full object-cover" loading="lazy" />
-                    ) : m.url && m.kind === "video" ? (
-                      <video src={m.url} className="size-full object-cover" muted preload="metadata" />
-                    ) : null}
+                    {m.url ? <Thumb src={m.url} alt={m.alt ?? ""} sizes="160px" /> : null}
                     <span className="absolute inset-0 grid place-items-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
                       <CheckCircle className="size-7 text-white" weight="fill" aria-hidden />
                     </span>
@@ -166,22 +187,6 @@ export function MediaPicker({
         </>
       )}
     </Modal>
-  );
-}
-
-export function KindFilter({ value, onChange }: { value: "all" | "image" | "video" | "file"; onChange: (v: "all" | "image" | "video" | "file") => void }) {
-  return (
-    <Segmented
-      label="File type"
-      value={value}
-      onChange={onChange}
-      options={[
-        { value: "all", label: "All" },
-        { value: "image", label: "Images" },
-        { value: "video", label: "Videos" },
-        { value: "file", label: "Documents" },
-      ]}
-    />
   );
 }
 

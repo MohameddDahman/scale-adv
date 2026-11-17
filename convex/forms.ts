@@ -5,23 +5,15 @@
  */
 import { ConvexError, v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { mutation } from "./_generated/server";
+import { internalMutation, mutation } from "./_generated/server";
 import { logActivity } from "./lib/activity";
 import { hitLimit } from "./lib/rateLimit";
+import { CV_TYPES, MAX_CV_BYTES } from "./lib/storage";
 import { clean, fail, isEmail, isUrl, normalizePhone, normalizeUrl, requireText } from "./lib/util";
 import { loadSettings } from "./site";
 
 const LEAD_SERVICES = ["content", "production", "media_buying", "full"];
 const HOUR = 60 * 60 * 1000;
-const MAX_CV_BYTES = 10 * 1024 * 1024;
-const CV_TYPES = [
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-];
 
 function limited(): never {
   throw new ConvexError({
@@ -92,11 +84,15 @@ export const submitLead = mutation({
   },
 });
 
-export const generateUploadUrl = mutation({
-  args: {},
-  handler: async (ctx) => {
-    if (!(await hitLimit(ctx, "upload:public", 60, 10 * 60 * 1000))) limited();
-    return await ctx.storage.generateUploadUrl();
+/**
+ * Rate limit for CV uploads (see convex/http.ts): a few per visitor, and a
+ * ceiling for the whole site, so a flood of uploads can't fill storage.
+ */
+export const claimUploadSlot = internalMutation({
+  args: { ip: v.optional(v.string()) },
+  handler: async (ctx, { ip }) => {
+    if (ip && !(await hitLimit(ctx, `upload:ip:${ip.slice(0, 64)}`, 6, HOUR))) return false;
+    return await hitLimit(ctx, "upload:public", 60, HOUR);
   },
 });
 
@@ -154,7 +150,7 @@ export const submitApplication = mutation({
     if (a.cv) {
       const meta = await ctx.db.system.get("_storage", a.cv);
       if (!meta) fail("Your file didn't upload. Attach it again.", "cv");
-      if (meta.size > MAX_CV_BYTES) fail("The file is larger than 10 MB.", "cv");
+      if (meta.size > MAX_CV_BYTES) fail("The file is larger than 5 MB.", "cv");
       if (meta.contentType && !CV_TYPES.includes(meta.contentType)) {
         fail("Upload a PDF, Word document or image.", "cv");
       }

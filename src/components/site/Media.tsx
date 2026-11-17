@@ -1,9 +1,11 @@
 import Image from "next/image";
 import { cn } from "@/lib/format";
+import { canOptimize } from "@/lib/image-url";
 
 /**
- * Local assets go through next/image; uploaded files (Convex storage URLs)
- * are already compressed by the dashboard and load as plain lazy images.
+ * Site images. Files in /public and uploads in Convex storage go through
+ * next/image, so visitors get a resized copy from Next's cache instead of
+ * downloading the original from Convex. Links to other sites load as-is.
  */
 export function Media({
   src,
@@ -16,10 +18,21 @@ export function Media({
   alt: string;
   sizes: string;
   className?: string;
+  /** Above the fold: load right away instead of lazily. */
   priority?: boolean;
 }) {
-  if (src.startsWith("/")) {
-    return <Image src={src} alt={alt} fill sizes={sizes} className={className} priority={priority} />;
+  if (canOptimize(src)) {
+    return (
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes={sizes}
+        className={className}
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : undefined}
+      />
+    );
   }
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -28,6 +41,7 @@ export function Media({
       alt={alt}
       className={cn("absolute inset-0 size-full", className)}
       loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : undefined}
       decoding="async"
     />
   );

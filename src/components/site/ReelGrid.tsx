@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PublicReel } from "@convex/lib/shape";
 import { cn, formatCompact, platformOf } from "@/lib/format";
 import { fmt, tx, type Dictionary, type Locale } from "@/lib/i18n";
+import { optimizedSrc } from "@/lib/image-url";
 import { Media } from "./Media";
 
 type Labels = Dictionary["work"];
@@ -251,7 +252,7 @@ function ReelViewer({
                       key={reel.id}
                       ref={videoRef}
                       src={reel.video}
-                      poster={reel.poster ?? undefined}
+                      poster={reel.poster ? optimizedSrc(reel.poster, 828) : undefined}
                       controls
                       autoPlay
                       playsInline

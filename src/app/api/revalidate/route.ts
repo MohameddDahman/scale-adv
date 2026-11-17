@@ -4,7 +4,7 @@ import { revalidateTag } from "next/cache";
 
 /**
  * Called by the dashboard after content changes so the public site shows
- * edits immediately instead of waiting for the one-minute cache window.
+ * edits immediately instead of waiting for the day-long page cache.
  * The caller's dashboard session token is verified against Convex.
  */
 export async function POST(request: Request) {

@@ -54,10 +54,30 @@ Everything below is editable in the dashboard; nothing is hard-coded in pages.
 | Job posts (6 roles) | Jobs | **Samples.** Edit, close or delete before launch. |
 | FAQs, careers perks and hiring steps, numbers on the Services page | FAQs · Site settings → Careers / Numbers | **Samples** written for the brand. Check every claim. |
 | Phone, WhatsApp, email, address, social links | Site settings → Contact / Social | Only Instagram is filled in. Empty fields stay hidden on the site. |
-| Reels | Reels | 3 placeholders using stills from your Instagram grid. Upload the real MP4s (or paste YouTube/Instagram links) and covers. |
+| Reels | Reels | 3 placeholders using stills from your Instagram grid. Add each real reel as a link (Cloudinary, YouTube or Instagram) and upload its cover. Video files aren't stored in Convex (see below). |
 | Case studies | Case studies | One **unpublished example** shows the format. The Results section appears once you publish a real one. |
 | Testimonials, team photos | Testimonials · Team on site | Empty — the sections appear when you add some. |
 | Logo | `src/components/site/Wordmark.tsx` | The wordmark is typeset from the brand's style (heavy wide italic + orange ADV tab). Swap in the official SVG if you have it. |
+
+## Staying inside the free Convex plan
+
+The free plan includes **1 GB of stored files** and **1 GB of file downloads a month** (plus 0.5 GB of database storage and 1 GB of database reads a month). If a deployment stays over a limit, Convex can start refusing requests, so the site is built to use as little as possible:
+
+| What | How |
+| --- | --- |
+| Images | Shrunk in the browser before upload, sized for where they're used, and saved as WebP. A logo is at most 512 px (usually under 60 KB), a reel cover 720×1280, and a case-study cover 1920 px. Share images are saved as JPEG at 1200×630 so WhatsApp shows them. Convex refuses any image over 1 MB, any other file type, and all video files. |
+| Duplicates | Uploading an image that's already in the library reuses the stored copy. |
+| Videos | Not stored in Convex. Reels link to the video on Cloudinary, YouTube or Instagram. Cloudinary links (and any direct `.mp4` link) play inside the site. |
+| CVs | Capped at 5 MB. A phone photo of a CV is shrunk to a readable JPEG first. Uploads go through a checked endpoint (`convex/http.ts`) that is rate-limited. |
+| Leftovers | Files nobody saved (for example, a CV from an application that wasn't sent) are deleted after about two hours. Deleting an image also clears it from wherever it was shown. |
+| Downloads | Visitors never load images from Convex. They get resized copies from the website's image cache (`/_next/image`, kept for a month), so the monthly 1 GB of downloads mostly goes to the dashboard. |
+| Database reads | Website pages are cached for a day and refreshed right after every dashboard save, so Convex isn't queried on each visit. |
+
+**Storage** in the dashboard shows how full the plan is, with the largest files. You can delete library images that aren't used anywhere, and delete the CV files of old applications (the applications themselves stay). Check the Convex dashboard's Usage page now and then. If the site outgrows the free plan, the paid Starter plan charges only for what goes over.
+
+Resized images are made by the host's image optimizer. On Vercel this has its own monthly allowance; because every copy is cached for a month, a site this size uses little of it.
+
+**Still to do:** connect the Cloudinary account for video hosting. Until then, paste a Cloudinary, YouTube or Instagram link in each reel.
 
 ## Deploying (Vercel recommended)
 
@@ -76,24 +96,26 @@ Everything below is editable in the dashboard; nothing is hard-coded in pages.
 2. **Deploy the site.** Import the repo in Vercel and set:
    - `CONVEX_DEPLOY_KEY` — from the Convex dashboard (Settings → Deploy keys), and set the build command to `npx convex deploy --cmd 'npm run build'` so backend and site deploy together; **or** just set `NEXT_PUBLIC_CONVEX_URL` to your production Convex URL if you deploy Convex separately.
    - `NEXT_PUBLIC_SITE_URL` — your domain, e.g. `https://scale-adv.com` (canonical links, sitemap, job structured data).
+   - `NEXT_PUBLIC_CONVEX_SITE_URL` is optional. CV uploads use the deployment's `.convex.site` address, which is worked out from `NEXT_PUBLIC_CONVEX_URL` when this isn't set.
 3. Open `https://your-domain/admin/setup`, enter the setup key, and create the owner account. Load starter content there or with `npx convex run seed:run --prod`.
 
 ## How it works
 
 ### Website
-- Pages are prerendered and cached for about a minute. Saving anything in the dashboard also calls `/api/revalidate`, so edits show up right away.
+- Pages are prerendered and cached for a day. Saving anything in the dashboard calls `/api/revalidate`, so edits still show up right away.
 - Without `NEXT_PUBLIC_CONVEX_URL` the site still renders, using the starter content in `convex/lib/defaults.ts` — handy for previews.
 - Share images (WhatsApp, Facebook, LinkedIn) are generated at `/api/og` and `/api/og?job=<slug>` unless you upload one under Site settings → Search & sharing.
 - Every role page publishes Google **JobPosting** structured data, so open roles can appear in Google's job search.
-- Forms: project briefs and job applications (CV upload up to 10 MB: PDF, Word, images). Both have a hidden bot trap, minimum fill time and per-person rate limits. Unclaimed uploads are deleted daily.
+- Forms: project briefs and job applications (CV upload up to 5 MB: PDF, Word, images). Both have a hidden bot trap, minimum fill time and per-person rate limits. Unclaimed uploads are deleted after about two hours.
 
 ### Dashboard (SCALE Studio)
 - **Overview** — 30-day inbound chart, pipeline, applications per role, follow-ups due, latest activity.
 - **Leads** — list and board (drag between stages), search, filters, bulk actions, CSV export, detail drawer with WhatsApp/call/email shortcuts, owner, follow-up date, deal value, tags, notes + automatic history. Add phone/WhatsApp leads by hand.
 - **Applications** — list and board by stage, filter by role, rating, tags, notes, CV preview/download, other applications from the same person, CSV export.
 - **Jobs** — bilingual editor with custom application questions (short answer, paragraph, link, yes/no, choice), drafts/open/closed, closing date, duplicate.
-- **Website content** — reels (video upload or link), case studies, clients, services, testimonials, FAQs, team — all bilingual, drag to reorder, publish/hide toggles, duplicate.
-- **Media library** — uploads are converted to WebP automatically; reuse files anywhere.
+- **Website content** — reels (video link + cover), case studies, clients, services, testimonials, FAQs, team — all bilingual, drag to reorder, publish/hide toggles, duplicate.
+- **Media library** — images are shrunk and converted to WebP before upload; reuse them anywhere. Each file shows where it's used, and a "Not used" filter lists the ones you can delete.
+- **Storage** — how much of the free plan's 1 GB is used, the largest files, and one-click clean-up of unused images and old CV files.
 - **Site settings** — homepage headline, numbers, contact, social, careers page copy, SEO, announcement bar.
 - **Team access** — invite links (shown once; send on WhatsApp), roles, disable access, password-reset links. **Activity log** of every change. Light/dark theme, `Ctrl+K` command palette.
 

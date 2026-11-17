@@ -62,7 +62,10 @@ export function youtubeEmbed(link: string | undefined): string | null {
   }
 }
 
-const isDirectVideo = (link?: string) => !!link && /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(link);
+/** Links a <video> tag can play: video files by extension, and Cloudinary video URLs. */
+export const isDirectVideo = (link?: string) =>
+  !!link &&
+  (/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(link) || /^https:\/\/res\.cloudinary\.com\/[^/]+\/video\/upload\//i.test(link));
 
 export type PublicReel = {
   id: string;

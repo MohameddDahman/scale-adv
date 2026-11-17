@@ -107,6 +107,8 @@ export default defineSchema({
     cvName: v.optional(v.string()),
     cvType: v.optional(v.string()),
     cvSize: v.optional(v.number()),
+    /** Set when the CV file was deleted to free up storage; name/type/size stay for the record. */
+    cvRemovedAt: v.optional(v.number()),
     coverNote: v.optional(v.string()),
     expectedSalary: v.optional(v.string()),
     startDate: v.optional(v.string()),
@@ -157,6 +159,8 @@ export default defineSchema({
 
   media: defineTable({
     storageId: v.id("_storage"),
+    /** Content hash from file storage; the same image uploaded twice is stored once. */
+    sha256: v.optional(v.string()),
     name: v.string(),
     contentType: v.string(),
     size: v.number(),
@@ -167,7 +171,8 @@ export default defineSchema({
     uploadedBy: v.id("users"),
   })
     .index("by_storage", ["storageId"])
-    .index("by_kind", ["kind"]),
+    .index("by_kind", ["kind"])
+    .index("by_hash", ["sha256"]),
 
   activity: defineTable({
     actorId: v.optional(v.id("users")),

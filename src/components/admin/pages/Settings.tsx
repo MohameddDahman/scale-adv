@@ -190,6 +190,7 @@ export function SettingsPage() {
                       storageId={draft.seo.ogImage}
                       path={draft.ogImageUrl ?? undefined}
                       aspect="aspect-[1200/630]"
+                      preset="share"
                       onChange={(next) => setDraft((d) => (d ? { ...d, seo: { ...d.seo, ogImage: next.storageId }, ogImageUrl: undefined } : d))}
                     />
                   </Field>

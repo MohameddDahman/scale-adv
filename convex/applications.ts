@@ -1,10 +1,11 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import { addEvent, logActivity } from "./lib/activity";
 import { requireUser } from "./lib/auth";
-import { fail } from "./lib/util";
+import { formatBytes } from "./lib/storage";
+import { DAY, fail } from "./lib/util";
 import { APP_STAGES, vAppStage, type AppStage } from "./lib/validators";
 
 const STAGE_LABEL: Record<AppStage, string> = {
@@ -193,7 +194,7 @@ export const remove = mutation({
     for (const id of a.ids) {
       const app = await ctx.db.get("applications", id);
       if (!app) continue;
-      if (app.cv) await ctx.storage.delete(app.cv);
+      if (app.cv && (await ctx.db.system.get("_storage", app.cv))) await ctx.storage.delete(app.cv);
       const notes = await ctx.db
         .query("notes")
         .withIndex("by_entity", (q) => q.eq("entity", "application").eq("entityId", id))
@@ -202,6 +203,64 @@ export const remove = mutation({
       await ctx.db.delete("applications", id);
     }
     await logActivity(ctx, user, "deleted", "application", `${a.ids.length} application${a.ids.length === 1 ? "" : "s"}`);
+  },
+});
+
+/* --------------------------- Free up space --------------------------- */
+
+const vCleanup = { token: v.string(), olderThanDays: v.number(), stages: v.array(vAppStage) };
+
+async function cleanupCandidates(
+  ctx: QueryCtx,
+  a: { olderThanDays: number; stages: AppStage[] },
+): Promise<Doc<"applications">[]> {
+  const cutoff = Date.now() - Math.max(30, a.olderThanDays) * DAY;
+  const out: Doc<"applications">[] = [];
+  for (const stage of [...new Set(a.stages)]) {
+    const rows = await ctx.db
+      .query("applications")
+      .withIndex("by_stage", (q) => q.eq("stage", stage))
+      .collect();
+    for (const r of rows) if (r.cv && r.updatedAt < cutoff) out.push(r);
+  }
+  return out;
+}
+
+/** How many CV files a cleanup would delete, and how much space it frees. */
+export const cvCleanupPreview = query({
+  args: vCleanup,
+  handler: async (ctx, a) => {
+    await requireUser(ctx, a.token, "careers");
+    const rows = await cleanupCandidates(ctx, a);
+    return { count: rows.length, bytes: rows.reduce((sum, r) => sum + (r.cvSize ?? 0), 0) };
+  },
+});
+
+/**
+ * Deletes the CV files (not the applications) of candidates in the chosen
+ * stages that haven't changed for a while. Name, phone, answers and notes
+ * stay; the application shows when the file was removed.
+ */
+export const purgeCvFiles = mutation({
+  args: vCleanup,
+  handler: async (ctx, a) => {
+    const user = await requireUser(ctx, a.token, "careers");
+    if (a.olderThanDays < 30) fail("Pick 30 days or more.");
+    const rows = await cleanupCandidates(ctx, a);
+    const batch = rows.slice(0, 150);
+    const now = Date.now();
+    let bytes = 0;
+    for (const r of batch) {
+      if (!r.cv) continue;
+      if (await ctx.db.system.get("_storage", r.cv)) await ctx.storage.delete(r.cv);
+      await ctx.db.patch("applications", r._id, { cv: undefined, cvRemovedAt: now });
+      await addEvent(ctx, "application", r._id, user, "CV file deleted to free up storage");
+      bytes += r.cvSize ?? 0;
+    }
+    if (batch.length) {
+      await logActivity(ctx, user, "deleted CV files", "application", `${batch.length} CV file${batch.length === 1 ? "" : "s"} (${formatBytes(bytes)})`);
+    }
+    return { removed: batch.length, bytes, remaining: rows.length - batch.length };
   },
 });
 

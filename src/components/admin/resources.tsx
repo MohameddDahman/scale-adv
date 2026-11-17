@@ -101,7 +101,7 @@ export const clientsConfig: ResourceConfig = {
     {
       title: "Logo",
       aside: true,
-      fields: [{ kind: "image", name: "logo", pathName: "logoPath", label: "Logo", hint: "Square works best. It's shown at 56px in the roster." }],
+      fields: [{ kind: "image", name: "logo", pathName: "logoPath", label: "Logo", preset: "logo", hint: "Square works best. It's shown at 56px in the roster." }],
     },
     {
       title: "Visibility",
@@ -146,7 +146,7 @@ export const servicesConfig: ResourceConfig = {
 export const reelsConfig: ResourceConfig = {
   singular: "Reel",
   plural: "Reels",
-  description: "Videos for the homepage and work page. Upload the MP4, or link to Instagram / TikTok / YouTube.",
+  description: "Videos for the homepage and work page. Each reel links to its video (Cloudinary, YouTube, Instagram or TikTok) and has a cover image.",
   basePath: "/admin/work",
   api: api.reels as any,
   view: "grid",
@@ -182,17 +182,26 @@ export const reelsConfig: ResourceConfig = {
     },
     {
       title: "Video",
-      description: "Upload the file for the best experience. Links are a fallback.",
+      description:
+        "Upload the video to Cloudinary, YouTube or Instagram and paste its link here. Video files aren't stored in the dashboard, so they don't use the free plan's storage.",
       fields: [
         { kind: "video", name: "video", label: "Video file" },
-        { kind: "text", name: "videoUrl", label: "…or video link", optional: true, dir: "ltr", placeholder: "https://youtube.com/shorts/… or https://…/reel.mp4", hint: "YouTube links play inside the site. Direct .mp4 links play too." },
+        {
+          kind: "text",
+          name: "videoUrl",
+          label: "Video link",
+          optional: true,
+          dir: "ltr",
+          placeholder: "https://res.cloudinary.com/…/video/upload/… or https://youtube.com/shorts/…",
+          hint: "Cloudinary and other .mp4 links play inside the site, and so do YouTube links. Instagram and TikTok links open the post.",
+        },
         { kind: "text", name: "socialUrl", label: "Post link", optional: true, dir: "ltr", placeholder: "https://instagram.com/reel/…", hint: "Shown as “Watch on Instagram”." },
       ],
     },
     {
       title: "Cover",
       aside: true,
-      fields: [{ kind: "image", name: "poster", pathName: "posterPath", label: "Cover frame", aspect: "aspect-[9/16]", hint: "A 1080×1920 still. Shown before the video plays." }],
+      fields: [{ kind: "image", name: "poster", pathName: "posterPath", label: "Cover frame", aspect: "aspect-[9/16]", preset: "poster", hint: "A vertical still from the reel. Shown before the video plays." }],
     },
     {
       title: "Visibility",
@@ -251,7 +260,7 @@ export const caseStudiesConfig: ResourceConfig = {
     },
     { title: "Numbers", fields: [{ kind: "metrics", name: "metrics", label: "Metrics", hint: "Real numbers only. Two show on cards; all show on the page." }] },
     { title: "Reels", fields: [{ kind: "references", name: "reelIds", label: "Reels from this project", source: "reels" }] },
-    { title: "Cover", aside: true, fields: [{ kind: "image", name: "cover", pathName: "coverPath", label: "Cover image", aspect: "aspect-[4/3]" }] },
+    { title: "Cover", aside: true, fields: [{ kind: "image", name: "cover", pathName: "coverPath", label: "Cover image", aspect: "aspect-[4/3]", preset: "cover" }] },
     {
       title: "Details",
       aside: true,
@@ -321,7 +330,7 @@ export const testimonialsConfig: ResourceConfig = {
         { kind: "reference", name: "clientId", label: "Company", source: "clients" },
       ],
     },
-    { title: "Photo", aside: true, fields: [{ kind: "image", name: "photo", pathName: "photoPath", label: "Photo" }] },
+    { title: "Photo", aside: true, fields: [{ kind: "image", name: "photo", pathName: "photoPath", label: "Photo", preset: "avatar" }] },
     { title: "Visibility", aside: true, fields: [{ kind: "switch", name: "published", label: "Show on website" }] },
   ],
 };
@@ -351,7 +360,7 @@ export const teamConfig: ResourceConfig = {
         { kind: "text", name: "instagram", label: "Instagram", optional: true, dir: "ltr", placeholder: "https://instagram.com/…" },
       ],
     },
-    { title: "Photo", aside: true, fields: [{ kind: "image", name: "photo", pathName: "photoPath", label: "Portrait", aspect: "aspect-[4/5]" }] },
+    { title: "Photo", aside: true, fields: [{ kind: "image", name: "photo", pathName: "photoPath", label: "Portrait", aspect: "aspect-[4/5]", preset: "photo" }] },
     { title: "Visibility", aside: true, fields: [{ kind: "switch", name: "published", label: "Show on website" }] },
   ],
 };

@@ -11,6 +11,7 @@ import {
 import { WorkSection } from "@/components/site/WorkSection";
 import { getHomeData, getLayoutData } from "@/lib/content";
 import { tx } from "@/lib/i18n";
+import { optimizedSrc } from "@/lib/image-url";
 import { getDictionary } from "@/lib/i18n/server";
 import { siteUrl } from "@/lib/site-url";
 
@@ -18,7 +19,12 @@ export default async function HomePage() {
   const { locale, d } = await getDictionary();
   const [layout, home] = await Promise.all([getLayoutData(), getHomeData()]);
   const { settings } = layout;
-  const frames = home.reels.map((r) => r.poster).filter((p): p is string => !!p).slice(0, 6);
+  // Resized, cached copies: the hero shows these small, and they're also used as CSS backgrounds.
+  const frames = home.reels
+    .map((r) => r.poster)
+    .filter((p): p is string => !!p)
+    .slice(0, 6)
+    .map((p) => optimizedSrc(p, 640));
   const sameAs = Object.values(settings.social).filter(Boolean);
 
   return (
