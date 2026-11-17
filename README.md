@@ -93,10 +93,13 @@ Resized images are made by the host's image optimizer. On Vercel this has its ow
    npx convex env set SETUP_KEY "<a long random string>" --prod
    ```
 
-2. **Deploy the site.** Import the repo in Vercel and set:
-   - `CONVEX_DEPLOY_KEY` — from the Convex dashboard (Settings → Deploy keys), and set the build command to `npx convex deploy --cmd 'npm run build'` so backend and site deploy together; **or** just set `NEXT_PUBLIC_CONVEX_URL` to your production Convex URL if you deploy Convex separately.
-   - `NEXT_PUBLIC_SITE_URL` — your domain, e.g. `https://scale-adv.com` (canonical links, sitemap, job structured data).
+2. **Deploy the site.** Import the repo in Vercel. The build command is already in `vercel.json`: production builds upload the Convex backend first and then build the site, so both always match. Preview builds only build the site. Set these environment variables:
+   - `CONVEX_DEPLOY_KEY` (Production). Create it with `npx convex deployment token create vercel-production --prod`, or in the Convex dashboard under Settings → Deploy keys.
+   - `NEXT_PUBLIC_CONVEX_URL` (Preview): the development deployment's URL, so preview links show test data.
+   - `NEXT_PUBLIC_SITE_URL` (optional): your domain, e.g. `https://scale-adv.com`. Without it, the site uses Vercel's production domain for canonical links, the sitemap and job structured data.
    - `NEXT_PUBLIC_CONVEX_SITE_URL` is optional. CV uploads use the deployment's `.convex.site` address, which is worked out from `NEXT_PUBLIC_CONVEX_URL` when this isn't set.
+
+   Vercel's free Hobby plan is for personal, non-commercial use only. A client's website needs a Pro team.
 3. Open `https://your-domain/admin/setup`, enter the setup key, and create the owner account. Load starter content there or with `npx convex run seed:run --prod`.
 
 ## How it works
