@@ -54,6 +54,7 @@ export async function SiteFooter({ locale, d, data }: { locale: Locale; d: Dicti
                 {[
                   ["/work", d.nav.work],
                   ["/services", d.nav.services],
+                  ["/agency", d.nav.agency],
                   ["/careers", d.nav.careers],
                   ["/contact", d.nav.contact],
                 ].map(([href, label]) => (

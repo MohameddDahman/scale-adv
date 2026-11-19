@@ -1,11 +1,11 @@
 import { EnvelopeSimple, Phone, WhatsappLogo } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
-import { LeadForm } from "@/components/site/LeadForm";
+import { BriefFlow } from "@/components/site/BriefFlow";
 import { PageIntro } from "@/components/site/sections";
+import { briefText } from "@/lib/brief-text";
 import { getLayoutData } from "@/lib/content";
 import { whatsappLink } from "@/lib/format";
 import { tx } from "@/lib/i18n";
-import en from "@/lib/i18n/en";
 import { getDictionary } from "@/lib/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -30,13 +30,8 @@ export default async function ContactPage() {
       <PageIntro tab={d.contactPage.tab} title={d.contactPage.title} body={d.contactPage.body} />
       <section className="border-t border-chalk/10 pb-24 pt-12">
         <div className="container-site grid gap-14 lg:grid-cols-12">
-          <div className="lg:col-span-7">
-            <LeadForm
-              locale={locale}
-              t={d.contactPage}
-              e={d.errors}
-              values={{ budgets: en.contactPage.budgets, industries: en.contactPage.industries, sources: en.contactPage.sources }}
-            />
+          <div id="brief" className="scroll-mt-24 lg:col-span-7">
+            <BriefFlow locale={locale} text={briefText(d)} mode="inline" />
           </div>
 
           <aside className="space-y-12 lg:col-span-4 lg:col-start-9">

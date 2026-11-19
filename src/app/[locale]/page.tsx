@@ -3,13 +3,18 @@ import {
   CareersBand,
   CaseStudiesSection,
   CtaBand,
+  FaqSection,
+  FormatsSection,
   Hero,
+  ProcessSection,
   Roster,
   ServicesTriad,
+  StatsBand,
   Testimonials,
+  WhySection,
 } from "@/components/site/sections";
 import { WorkSection } from "@/components/site/WorkSection";
-import { getHomeData, getLayoutData } from "@/lib/content";
+import { getHomeData, getLayoutData, getServicesData } from "@/lib/content";
 import { tx } from "@/lib/i18n";
 import { optimizedSrc } from "@/lib/image-url";
 import { getDictionary } from "@/lib/i18n/server";
@@ -17,7 +22,7 @@ import { siteUrl } from "@/lib/site-url";
 
 export default async function HomePage() {
   const { locale, d } = await getDictionary();
-  const [layout, home] = await Promise.all([getLayoutData(), getHomeData()]);
+  const [layout, home, services] = await Promise.all([getLayoutData(), getHomeData(), getServicesData()]);
   const { settings } = layout;
   // Resized, cached copies: the hero shows these small, and they're also used as CSS backgrounds.
   const frames = home.reels
@@ -43,11 +48,16 @@ export default async function HomePage() {
         }}
       />
       <Hero locale={locale} d={d} settings={settings} openRoles={layout.openRoles} frames={frames} />
+      <StatsBand locale={locale} d={d} stats={settings.stats} />
       <Roster locale={locale} d={d} clients={home.clients} audience={home.audience} />
       <ServicesTriad locale={locale} d={d} services={home.services} />
+      <ProcessSection locale={locale} d={d} />
+      <FormatsSection locale={locale} d={d} reels={home.reels} />
       <WorkSection locale={locale} d={d} reels={home.reels} instagram={settings.social.instagram} />
+      <WhySection locale={locale} d={d} />
       <CaseStudiesSection locale={locale} d={d} items={home.caseStudies} />
       <Testimonials locale={locale} d={d} items={home.testimonials} />
+      <FaqSection locale={locale} d={d} items={services.faqs.slice(0, 6)} />
       <CareersBand locale={locale} d={d} jobs={home.jobs} />
       <CtaBand locale={locale} d={d} whatsapp={settings.contact.whatsapp} />
     </>

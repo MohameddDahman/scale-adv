@@ -7,6 +7,7 @@ import { Dialog } from "radix-ui";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/format";
 import { localeHref, type Dictionary, type Locale } from "@/lib/i18n";
+import { BriefLink } from "./Brief";
 import { LanguageSwitch } from "./LanguageSwitch";
 import { Wordmark } from "./Wordmark";
 
@@ -32,6 +33,7 @@ export function SiteHeader({ locale, nav, openRoles, announcement }: Props) {
   const links = [
     { href: "/work", label: nav.work },
     { href: "/services", label: nav.services },
+    { href: "/agency", label: nav.agency },
     { href: "/careers", label: nav.careers, badge: openRoles },
     { href: "/contact", label: nav.contact },
   ];
@@ -102,9 +104,7 @@ export function SiteHeader({ locale, nav, openRoles, announcement }: Props) {
 
           <div className="flex items-center gap-1 sm:gap-3">
             <LanguageSwitch locale={locale} label={nav.switchTo} ariaLabel={nav.switchLabel} />
-            <Link href={localeHref(locale, "/contact")} className="btn btn-signal hidden !min-h-11 !px-5 sm:inline-flex">
-              {nav.start}
-            </Link>
+            <BriefLink className="btn btn-signal hidden !min-h-11 !px-5 sm:inline-flex">{nav.start}</BriefLink>
             <Dialog.Root open={open} onOpenChange={setOpen}>
               <Dialog.Trigger asChild>
                 <button
@@ -156,9 +156,9 @@ export function SiteHeader({ locale, nav, openRoles, announcement }: Props) {
                     </ul>
                   </nav>
                   <div className="container-site flex flex-col gap-3 py-8">
-                    <Link href={localeHref(locale, "/contact")} onClick={() => setOpen(false)} className="btn btn-signal w-full">
+                    <BriefLink onOpen={() => setOpen(false)} className="btn btn-signal w-full">
                       {nav.start}
-                    </Link>
+                    </BriefLink>
                     <LanguageSwitch locale={locale} label={nav.switchTo} ariaLabel={nav.switchLabel} className="btn btn-line w-full" />
                   </div>
                 </Dialog.Content>

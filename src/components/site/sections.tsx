@@ -6,17 +6,21 @@ import type {
   PublicClient,
   PublicFaq,
   PublicJobSummary,
+  PublicReel,
   PublicService,
   PublicSettings,
   PublicTestimonial,
 } from "@convex/lib/shape";
-import { cn, formatCompact, formatNumber, whatsappLink } from "@/lib/format";
+import { REEL_FORMATS } from "@convex/lib/validators";
+import { cn, whatsappLink } from "@/lib/format";
 import { fmt, localeHref, tx, type Dictionary, type Locale } from "@/lib/i18n";
+import { BriefLink } from "./Brief";
 import { HeroTimeline } from "./HeroTimeline";
 import { JobRow } from "./JobRow";
 import { Media } from "./Media";
 import { Reveal } from "./Reveal";
 import { SectionHead } from "./SectionHead";
+import { BrandWall, CountUp, FormatShelf, ProcessScrub } from "./showcase";
 
 type Base = { locale: Locale; d: Dictionary };
 
@@ -51,10 +55,10 @@ export function Hero({
             {tx(h.sub, locale)}
           </p>
           <div className="flex flex-wrap gap-3 md:col-span-6 md:justify-end">
-            <Link href={localeHref(locale, "/contact")} className="btn btn-signal">
+            <BriefLink className="btn btn-signal">
               {d.hero.primary}
               <Arrow />
-            </Link>
+            </BriefLink>
             <Link href={localeHref(locale, "/careers")} className="btn btn-line">
               {d.hero.secondary}
               {openRoles > 0 ? <span className="font-mono text-[0.78rem] text-signal">{roles}</span> : null}
@@ -73,63 +77,47 @@ export function Hero({
 
 /* ------------------------------------------------------------------ */
 
-export function Roster({ locale, d, clients, audience }: Base & { clients: PublicClient[]; audience: number }) {
+/** "518K+": rounded down, so the claim is never bigger than the real number. */
+function atLeast(n: number) {
+  if (n >= 1_000_000) return `${Math.floor(n / 100_000) / 10}M+`;
+  if (n >= 1_000) return `${Math.floor(n / 1_000)}K+`;
+  return String(n);
+}
+
+export function Roster({ locale, d, clients, audience, title }: Base & { clients: PublicClient[]; audience: number; title?: string }) {
   if (!clients.length) return null;
   return (
     <section className="border-t border-chalk/10 py-20 md:py-28" aria-labelledby="roster-title">
       <div className="container-site">
-        <SectionHead id="roster-title" tab={d.roster.tab} title={d.roster.title} body={d.roster.body} />
-        <Reveal as="ul" className="mt-12 grid border-t border-chalk/10 md:grid-cols-2 md:gap-x-12">
-          {clients.map((c) => (
-            <li key={c.id} className="border-b border-chalk/10">
-              <ClientRow client={c} locale={locale} d={d} />
-            </li>
-          ))}
-        </Reveal>
-        {audience > 0 ? (
-          <p className="mt-8 flex items-center gap-3 text-[0.95rem] text-smoke">
-            <span className="h-px w-8 bg-signal" aria-hidden />
-            {fmt(d.roster.audience, { n: formatNumber(audience, locale) })}
-          </p>
-        ) : null}
+        <SectionHead
+          id="roster-title"
+          tab={d.roster.tab}
+          title={title ?? d.roster.title}
+          body={d.roster.body}
+          aside={
+            audience > 0 ? (
+              <p className="mt-6 flex flex-wrap items-baseline gap-x-3">
+                <CountUp value={atLeast(audience)} className="heading text-[clamp(2.4rem,4.5vw,3.6rem)] text-signal" />
+                <span className="text-[0.95rem] text-smoke">{d.roster.combined}</span>
+              </p>
+            ) : undefined
+          }
+        />
+        <div className="mt-12">
+          <BrandWall
+            clients={clients}
+            locale={locale}
+            labels={{
+              filterLabel: d.roster.filterLabel,
+              filterAll: d.roster.filterAll,
+              groups: d.roster.groups,
+              followers: d.roster.followers,
+              visit: d.roster.visit,
+            }}
+          />
+        </div>
       </div>
     </section>
-  );
-}
-
-function ClientRow({ client: c, locale, d }: Base & { client: PublicClient }) {
-  const name = tx(c.name, locale);
-  const body = (
-    <>
-      <span className="relative size-14 shrink-0 overflow-hidden bg-ink-800 ring-1 ring-chalk/10">
-        {c.logo ? (
-          <Media src={c.logo} alt="" sizes="56px" className="object-cover" />
-        ) : (
-          <span className="heading grid size-full place-items-center text-xl text-chalk">{name.slice(0, 1)}</span>
-        )}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[1.06rem] font-semibold text-chalk">{name}</span>
-        <span className="block truncate text-[0.9rem] text-smoke">
-          {tx(c.industry, locale)}
-          {tx(c.city, locale) ? ` · ${tx(c.city, locale)}` : ""}
-        </span>
-      </span>
-      {c.followers ? (
-        <span className="shrink-0 text-end">
-          <span className="block font-mono text-[1.02rem] font-medium tabular text-chalk">{formatCompact(c.followers, locale)}</span>
-          <span className="block text-[0.72rem] text-ash">{d.roster.followers}</span>
-        </span>
-      ) : null}
-    </>
-  );
-  const cls = "group relative flex min-h-[5.5rem] items-center gap-4 py-4 transition-colors";
-  if (!c.link) return <div className={cls}>{body}</div>;
-  return (
-    <a href={c.link} target="_blank" rel="noopener noreferrer" className={cn(cls, "hover:bg-ink-900")} aria-label={fmt(d.roster.visit, { name })}>
-      <span className="absolute inset-y-3 start-0 w-[3px] origin-top scale-y-0 bg-signal transition-transform group-hover:scale-y-100" aria-hidden />
-      {body}
-    </a>
   );
 }
 
@@ -324,7 +312,7 @@ export function CareersBand({ locale, d, jobs }: Base & { jobs: PublicJobSummary
 
 /* ------------------------------------------------------------------ */
 
-export function CtaBand({ locale, d, whatsapp }: Base & { whatsapp?: string }) {
+export function CtaBand({ d, whatsapp }: Base & { whatsapp?: string }) {
   return (
     <section className="on-signal bg-signal text-ink-950" aria-labelledby="cta-title">
       <div className="container-site grid gap-10 py-20 md:grid-cols-12 md:items-end md:py-28">
@@ -334,10 +322,10 @@ export function CtaBand({ locale, d, whatsapp }: Base & { whatsapp?: string }) {
         <div className="md:col-span-4">
           <p className="max-w-[34ch] text-[1.12rem] font-medium leading-relaxed text-ink-950/80">{d.cta.body}</p>
           <div className="mt-7 flex flex-wrap gap-3">
-            <Link href={localeHref(locale, "/contact")} className="btn btn-ink">
+            <BriefLink className="btn btn-ink">
               {d.cta.primary}
               <Arrow />
-            </Link>
+            </BriefLink>
             {whatsapp ? (
               <a
                 href={whatsappLink(whatsapp)}
@@ -380,6 +368,102 @@ export function PageIntro({ tab, title, body, children }: { tab: string; title: 
       <div className="container-site">
         <SectionHead as="h1" tab={tab} title={title} body={body} />
         {children}
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+/** The headline numbers (Site settings → Numbers), counting up as they scroll in. */
+export function StatsBand({ locale, d, stats, className }: Base & { stats: PublicSettings["stats"]; className?: string }) {
+  if (!stats.length) return null;
+  return (
+    <section className={cn("border-t border-chalk/10", className)} aria-label={d.numbers.tab}>
+      <div className="container-site">
+        <dl className="stats-band">
+          {stats.map((s, i) => (
+            <div key={i} className="stats-cell">
+              <dt className="order-2 max-w-[24ch] text-[0.98rem] leading-snug text-smoke">{tx(s.label, locale)}</dt>
+              <dd className="display order-1 text-[clamp(3.2rem,7.5vw,6rem)] text-chalk" dir="ltr">
+                <CountUp value={s.value} />
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </section>
+  );
+}
+
+export function ProcessSection({ d }: Base) {
+  return (
+    <section className="border-t border-chalk/10 bg-ink-900 py-20 md:py-28" aria-labelledby="process-title">
+      <div className="container-site">
+        <SectionHead id="process-title" tab={d.servicesPage.processTab} title={d.servicesPage.processTitle} body={d.process.body} />
+        <div className="mt-14">
+          <ProcessScrub steps={d.servicesPage.steps} nowLabel={d.process.now} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Shown first: the formats people recognise fastest. */
+const FORMAT_ORDER = ["pov", "skit", "storytelling", "product", "ugc", "voxpop", "bts", "ad", "motion"];
+
+/** Reel formats, illustrated with covers of published reels in that format where there are some. */
+export function FormatsSection({ d, reels }: Base & { reels: PublicReel[] }) {
+  const stills = new Map<string, string>();
+  for (const r of reels) if (r.poster && !stills.has(r.format)) stills.set(r.format, r.poster);
+  const keys = [...FORMAT_ORDER, ...REEL_FORMATS.filter((k) => !FORMAT_ORDER.includes(k))].filter((k) => d.formats.items[k]);
+  const items = keys.map((key) => ({ key, name: d.work.formats[key] ?? key, ...d.formats.items[key], still: stills.get(key) ?? null }));
+  return (
+    <section className="overflow-hidden border-t border-chalk/10 py-20 md:py-28" aria-labelledby="formats-title">
+      <div className="container-site">
+        <SectionHead id="formats-title" tab={d.formats.tab} title={d.formats.title} body={d.formats.body} />
+        <div className="mt-10">
+          <FormatShelf items={items} labels={{ prev: d.formats.prev, next: d.formats.next, bestFor: d.formats.bestFor, length: d.formats.length }} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function WhySection({ d, tab, title }: Base & { tab?: string; title?: string }) {
+  return (
+    <section className="border-t border-chalk/10 py-20 md:py-28" aria-labelledby="why-title">
+      <div className="container-site">
+        <SectionHead id="why-title" tab={tab ?? d.why.tab} title={title ?? d.why.title} />
+        <Reveal as="ul" className="why-grid mt-14">
+          {d.why.items.map((item, i) => (
+            <li key={i} className="why-item">
+              <h3 className="heading why-title">{item.title}</h3>
+              <p className="why-body">{item.body}</p>
+            </li>
+          ))}
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+export function FaqSection({ locale, d, items, tab, title }: Base & { items: PublicFaq[]; tab?: string; title?: string }) {
+  if (!items.length) return null;
+  return (
+    <section className="border-t border-chalk/10 py-20 md:py-28" aria-labelledby="faq-title">
+      <div className="container-site grid gap-10 lg:grid-cols-12">
+        <div className="lg:col-span-4">
+          <span className="adv-tab">
+            <span>{tab ?? d.faqHome.tab}</span>
+          </span>
+          <h2 id="faq-title" className="heading mt-5 text-[clamp(2rem,4.4vw,3.6rem)] text-chalk">
+            {title ?? d.faqHome.title}
+          </h2>
+        </div>
+        <div className="lg:col-span-8">
+          <FaqList locale={locale} items={items} />
+        </div>
       </div>
     </section>
   );

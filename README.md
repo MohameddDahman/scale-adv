@@ -54,6 +54,7 @@ Everything below is editable in the dashboard; nothing is hard-coded in pages.
 | Job posts (6 roles) | Jobs | **Samples.** Edit, close or delete before launch. |
 | FAQs, careers perks and hiring steps, numbers on the Services page | FAQs · Site settings → Careers / Numbers | **Samples** written for the brand. Check every claim. |
 | Phone, WhatsApp, email, address, social links | Site settings → Contact / Social | Only Instagram is filled in. Empty fields stay hidden on the site. |
+| Process steps, reel formats, "Why SCALE" principles, the Agency page | `src/lib/i18n/en.ts` and `ar.ts` (`servicesPage.steps`, `formats`, `why`, `agencyPage`) | Written for the brand from what SCALE offers. Check they match how the team really works. The numbers band uses Site settings → Numbers, and the brand wall uses Clients. |
 | Reels | Reels | 3 placeholders using stills from your Instagram grid. Add each real reel as a link (Cloudinary, YouTube or Instagram) and upload its cover. Video files aren't stored in Convex (see below). |
 | Case studies | Case studies | One **unpublished example** shows the format. The Results section appears once you publish a real one. |
 | Testimonials, team photos | Testimonials · Team on site | Empty — the sections appear when you add some. |

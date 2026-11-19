@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { BriefProvider } from "@/components/site/Brief";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
+import { briefText } from "@/lib/brief-text";
 import { getLayoutData } from "@/lib/content";
 import { fontVariables } from "@/lib/fonts";
-import { dirOf, tx } from "@/lib/i18n";
+import { dirOf, localeHref, tx } from "@/lib/i18n";
 import { getDictionary } from "@/lib/i18n/server";
 import { siteUrl } from "@/lib/site-url";
 import "../globals.css";
@@ -53,22 +55,24 @@ export default async function LocaleLayout({ children }: LayoutProps<"/[locale]"
   return (
     <html lang={locale} dir={dirOf(locale)} className={`${fontVariables} site`}>
       <body className="min-h-dvh bg-ink-950">
-        <a
-          href="#main"
-          className="fixed start-4 top-3 z-[60] -translate-y-24 bg-signal px-4 py-3 font-semibold text-ink-950 transition-transform focus:translate-y-0"
-        >
-          {d.nav.skip}
-        </a>
-        <SiteHeader
-          locale={locale}
-          nav={d.nav}
-          openRoles={data.openRoles}
-          announcement={announcement.enabled ? { text: tx(announcement.text, locale), href: announcement.href } : null}
-        />
-        <main id="main" tabIndex={-1} className="outline-none">
-          {children}
-        </main>
-        <SiteFooter locale={locale} d={d} data={data} />
+        <BriefProvider locale={locale} text={briefText(d)} contactHref={localeHref(locale, "/contact")}>
+          <a
+            href="#main"
+            className="fixed start-4 top-3 z-[60] -translate-y-24 bg-signal px-4 py-3 font-semibold text-ink-950 transition-transform focus:translate-y-0"
+          >
+            {d.nav.skip}
+          </a>
+          <SiteHeader
+            locale={locale}
+            nav={d.nav}
+            openRoles={data.openRoles}
+            announcement={announcement.enabled ? { text: tx(announcement.text, locale), href: announcement.href } : null}
+          />
+          <main id="main" tabIndex={-1} className="outline-none">
+            {children}
+          </main>
+          <SiteFooter locale={locale} d={d} data={data} />
+        </BriefProvider>
       </body>
     </html>
   );
