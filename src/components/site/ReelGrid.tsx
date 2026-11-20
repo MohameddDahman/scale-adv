@@ -104,7 +104,7 @@ function ReelCard({
   labels: Labels;
   onOpen: () => void;
 }) {
-  const [preview, setPreview] = useState(false);
+  // No hover previews: each one would download the video from Cloudinary and eat into the free plan.
   const title = tx(reel.title, locale);
   const client = reel.client ? tx(reel.client, locale) : null;
 
@@ -112,10 +112,6 @@ function ReelCard({
     <button
       type="button"
       onClick={onOpen}
-      onMouseEnter={() => reel.video && setPreview(true)}
-      onMouseLeave={() => setPreview(false)}
-      onFocus={() => reel.video && setPreview(true)}
-      onBlur={() => setPreview(false)}
       className="viewfinder group relative block aspect-[9/16] w-full cursor-pointer overflow-hidden bg-ink-800 text-start"
       aria-label={`${labels.watch}: ${title}`}
     >
@@ -129,18 +125,6 @@ function ReelCard({
       ) : (
         <span className="absolute inset-0 bg-[radial-gradient(120%_70%_at_20%_10%,rgb(255_91_31/0.35),transparent_60%)]" />
       )}
-      {preview && reel.video ? (
-        <video
-          src={reel.video}
-          muted
-          playsInline
-          autoPlay
-          loop
-          preload="none"
-          className="absolute inset-0 size-full object-cover"
-          aria-hidden
-        />
-      ) : null}
       <span className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-ink-950/95 via-ink-950/40 to-transparent" aria-hidden />
       <span className="adv-tab absolute start-3 top-3 !text-[0.6rem]">
         <span>{labels.formats[reel.format] ?? reel.format}</span>

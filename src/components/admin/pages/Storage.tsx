@@ -1,12 +1,13 @@
 "use client";
 
 import { api } from "@convex/_generated/api";
+import type { FunctionReturnType } from "convex/server";
 import { FilmStrip } from "@phosphor-icons/react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { APP_STAGE, STAGE_ORDER, type AppStageKey } from "../format";
 import { formatBytes, Thumb } from "../media";
-import { errorMessage, useAdminMutation, useAdminQuery, useSession } from "../session";
+import { errorMessage, useAdminAction, useAdminMutation, useAdminQuery, useSession } from "../session";
 import { StorageMeter, useStorageUsage } from "../storage";
 import { Button, Field, PageHeader, Panel, Select, Skeleton, useFeedback } from "../ui";
 
@@ -38,6 +39,7 @@ export function StoragePage() {
               </div>
             ) : null}
           </Panel>
+          <VideoHosting />
           {can("media") ? <UnusedImages /> : null}
           {can("careers") ? <OldCvFiles /> : null}
         </div>
@@ -53,7 +55,8 @@ export function StoragePage() {
               existing copy.
             </li>
             <li>
-              <span className="font-semibold text-a-text">Videos are linked, not stored.</span> Reels point to Cloudinary, YouTube or Instagram.
+              <span className="font-semibold text-a-text">Videos never touch Convex.</span> They&apos;re shrunk to 720p in the browser (a 30-second
+              reel is about 5 MB) and go straight to Cloudinary. Deleting or replacing a reel deletes its video there too.
             </li>
             <li>
               <span className="font-semibold text-a-text">CVs are capped at 5 MB.</span> Photos of CVs are shrunk first.
@@ -70,6 +73,81 @@ export function StoragePage() {
         </Panel>
       </div>
     </div>
+  );
+}
+
+type CloudUsage = FunctionReturnType<typeof api.cloudinary.usage>;
+
+/** Cloudinary (videos): the free plan's 25 credits per 30 days, and what's using them. */
+function VideoHosting() {
+  const load = useAdminAction(api.cloudinary.usage);
+  const [data, setData] = useState<CloudUsage | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    load({})
+      .then((r) => live && setData(r))
+      .catch(() => live && setFailed(true));
+    return () => {
+      live = false;
+    };
+  }, [load]);
+
+  const used = data && data.configured && !("error" in data) ? data : null;
+  const share = used?.creditsUsed != null && used.creditsLimit ? used.creditsUsed / used.creditsLimit : null;
+  const level = share === null ? null : share >= 0.9 ? "danger" : share >= 0.7 ? "warn" : null;
+
+  return (
+    <Panel title="Video hosting (Cloudinary)" description="Reels are shrunk to 720p before upload and stored on Cloudinary's free plan: 25 credits every 30 days, where 1 credit is about 1 GB stored or 1 GB watched.">
+      {failed ? (
+        <p className="text-[0.84rem] text-a-muted">Couldn&apos;t reach Cloudinary right now. Try again later.</p>
+      ) : data === null ? (
+        <Skeleton className="h-16" />
+      ) : !data.configured ? (
+        <p className="text-[0.84rem] text-a-muted">Not connected yet. Once the Cloudinary keys are added (see the README), usage shows here and reels can be uploaded.</p>
+      ) : "error" in data ? (
+        <p className="text-[0.84rem] text-a-danger">{data.error}</p>
+      ) : (
+        <div>
+          {share !== null ? (
+            <>
+              <p className="text-[0.88rem] text-a-text">
+                <span className="font-semibold tabular">{used!.creditsUsed!.toFixed(2)}</span>
+                <span className="text-a-muted">
+                  {" "}
+                  of {used!.creditsLimit} credits used in the last 30 days · {Math.round(share * 100)}%
+                </span>
+              </p>
+              <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-a-line" role="meter" aria-label="Cloudinary credits used" aria-valuemin={0} aria-valuemax={used!.creditsLimit!} aria-valuenow={used!.creditsUsed!}>
+                <span className="block h-full rounded-full" style={{ width: `${Math.max(0.6, Math.min(100, share * 100))}%`, background: "var(--viz-leads)" }} />
+              </div>
+            </>
+          ) : null}
+          <dl className="mt-4 grid grid-cols-3 gap-4 text-[0.82rem]">
+            <div>
+              <dt className="text-a-muted">Stored</dt>
+              <dd className="font-semibold tabular text-a-text">{used!.storageBytes != null ? formatBytes(used!.storageBytes) : "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-a-muted">Watched (30 days)</dt>
+              <dd className="font-semibold tabular text-a-text">{used!.bandwidthBytes != null ? formatBytes(used!.bandwidthBytes) : "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-a-muted">Processing</dt>
+              <dd className="font-semibold tabular text-a-text">{used!.transformations ?? "—"}</dd>
+            </div>
+          </dl>
+          {level ? (
+            <p className={`mt-3 text-[0.8rem] font-semibold ${level === "danger" ? "text-a-danger" : "text-a-warn"}`}>
+              {level === "danger"
+                ? "Almost out of credits for this 30-day window. Videos may stop playing until older usage rolls off."
+                : "Credits are filling up. Deleting reels you no longer show frees storage."}
+            </p>
+          ) : null}
+        </div>
+      )}
+    </Panel>
   );
 }
 

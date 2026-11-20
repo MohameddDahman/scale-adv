@@ -50,6 +50,7 @@ import {
   useStorageUrls,
 } from "./fields";
 import { Thumb } from "./media";
+import { ReelVideoField } from "./video";
 import { errorField, errorMessage, useAdminMutation, useAdminQuery } from "./session";
 import {
   Badge,
@@ -86,6 +87,7 @@ export type FieldDef =
   | (Base & { kind: "switch"; description?: string })
   | (Base & { kind: "image"; pathName: string; aspect?: string; preset?: ImagePreset })
   | (Base & { kind: "video" })
+  | (Base & { kind: "reelVideo" })
   | (Base & { kind: "slug"; source: string; prefix: string })
   | (Base & { kind: "reference"; source: "clients" })
   | (Base & { kind: "references"; source: "reels" })
@@ -790,6 +792,25 @@ export function FieldControl({
           <StoredVideo storageId={value} onRemove={() => set(f.name, undefined)} />
         </Field>
       ) : null;
+    case "reelVideo":
+      return (
+        <Field label={f.label} hint={f.hint} error={error}>
+          <ReelVideoField
+            value={{ videoUrl: data.videoUrl, videoPublicId: data.videoPublicId, videoBytes: data.videoBytes, videoDuration: data.videoDuration }}
+            needsCover={!data.poster && !data.posterPath}
+            onChange={(next) => {
+              set("videoUrl", next.videoUrl);
+              set("videoPublicId", next.videoPublicId);
+              set("videoBytes", next.videoBytes);
+              set("videoDuration", next.videoDuration);
+            }}
+            onCover={(storageId) => {
+              set("poster", storageId);
+              set("posterPath", undefined);
+            }}
+          />
+        </Field>
+      );
     case "slug":
       return (
         <Field label={f.label} htmlFor={id} hint={f.hint} error={error} required>

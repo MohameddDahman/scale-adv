@@ -163,6 +163,9 @@ export const reelsConfig: ResourceConfig = {
     format: "skit",
     video: undefined,
     videoUrl: undefined,
+    videoPublicId: undefined,
+    videoBytes: undefined,
+    videoDuration: undefined,
     socialUrl: undefined,
     poster: undefined,
     posterPath: undefined,
@@ -182,26 +185,17 @@ export const reelsConfig: ResourceConfig = {
     },
     {
       title: "Video",
-      description:
-        "Upload the video to Cloudinary, YouTube or Instagram and paste its link here. Video files aren't stored in the dashboard, so they don't use the free plan's storage.",
+      description: "Upload the reel (it's shrunk and stored on Cloudinary) or paste a YouTube or Instagram link.",
       fields: [
         { kind: "video", name: "video", label: "Video file" },
-        {
-          kind: "text",
-          name: "videoUrl",
-          label: "Video link",
-          optional: true,
-          dir: "ltr",
-          placeholder: "https://res.cloudinary.com/…/video/upload/… or https://youtube.com/shorts/…",
-          hint: "Cloudinary and other .mp4 links play inside the site, and so do YouTube links. Instagram and TikTok links open the post.",
-        },
+        { kind: "reelVideo", name: "videoUrl", label: "Video" },
         { kind: "text", name: "socialUrl", label: "Post link", optional: true, dir: "ltr", placeholder: "https://instagram.com/reel/…", hint: "Shown as “Watch on Instagram”." },
       ],
     },
     {
       title: "Cover",
       aside: true,
-      fields: [{ kind: "image", name: "poster", pathName: "posterPath", label: "Cover frame", aspect: "aspect-[9/16]", preset: "poster", hint: "A vertical still from the reel. Shown before the video plays." }],
+      fields: [{ kind: "image", name: "poster", pathName: "posterPath", label: "Cover frame", aspect: "aspect-[9/16]", preset: "poster", hint: "A vertical still from the reel, shown before it plays. Uploading a video makes one from its first second when this is empty." }],
     },
     {
       title: "Visibility",

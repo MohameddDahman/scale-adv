@@ -115,6 +115,10 @@ export const reelFields = {
   format: v.string(),
   video: v.optional(v.id("_storage")),
   videoUrl: v.optional(v.string()),
+  /** Set when the video was uploaded to Cloudinary from the dashboard; used to delete it later. */
+  videoPublicId: v.optional(v.string()),
+  videoBytes: v.optional(v.number()),
+  videoDuration: v.optional(v.number()),
   socialUrl: v.optional(v.string()),
   poster: v.optional(v.id("_storage")),
   posterPath: v.optional(v.string()),

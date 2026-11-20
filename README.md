@@ -68,7 +68,7 @@ The free plan includes **1 GB of stored files** and **1 GB of file downloads a m
 | --- | --- |
 | Images | Shrunk in the browser before upload, sized for where they're used, and saved as WebP. A logo is at most 512 px (usually under 60 KB), a reel cover 720×1280, and a case-study cover 1920 px. Share images are saved as JPEG at 1200×630 so WhatsApp shows them. Convex refuses any image over 1 MB, any other file type, and all video files. |
 | Duplicates | Uploading an image that's already in the library reuses the stored copy. |
-| Videos | Not stored in Convex. Reels link to the video on Cloudinary, YouTube or Instagram. Cloudinary links (and any direct `.mp4` link) play inside the site. |
+| Videos | Never stored in Convex. Uploaded reels go straight from the browser to Cloudinary (see "Video hosting" below); YouTube and Instagram links work too. |
 | CVs | Capped at 5 MB. A phone photo of a CV is shrunk to a readable JPEG first. Uploads go through a checked endpoint (`convex/http.ts`) that is rate-limited. |
 | Leftovers | Files nobody saved (for example, a CV from an application that wasn't sent) are deleted after about two hours. Deleting an image also clears it from wherever it was shown. |
 | Downloads | Visitors never load images from Convex. They get resized copies from the website's image cache (`/_next/image`, kept for a month), so the monthly 1 GB of downloads mostly goes to the dashboard. |
@@ -78,7 +78,30 @@ The free plan includes **1 GB of stored files** and **1 GB of file downloads a m
 
 Resized images are made by the host's image optimizer. On Vercel this has its own monthly allowance; because every copy is cached for a month, a site this size uses little of it.
 
-**Still to do:** connect the Cloudinary account for video hosting. Until then, paste a Cloudinary, YouTube or Instagram link in each reel.
+## Video hosting (Cloudinary)
+
+Reels are stored on Cloudinary, separate from Convex. The free plan gives 25 credits per rolling 30 days, shared between storage (1 credit is about 1 GB stored), viewing (about 1 GB watched) and processing (about 1,000 transformations). To make that last:
+
+- **Shrunk before upload.** The dashboard re-encodes every video in the browser: H.264 MP4, at most 720×1280 (or 1280×720), about 1.3 Mbps video and 96 kbps AAC audio, at most 30 fps. A 30-second phone export of 60–200 MB becomes about 5 MB. If the video hardware overshoots on very busy footage, a second pass caps the size. A file that's already small is uploaded as it is.
+- **No processing on Cloudinary.** Videos are delivered exactly as stored, so they use no transformation credits. If a browser can't encode video, Cloudinary shrinks the file on upload instead (720p, its leanest automatic quality), for files up to 40 MB.
+- **Signed uploads.** The Cloudinary secret stays in Convex. Only signed-in dashboard users can upload, and only into the `scale-adv/reels` folder.
+- **Nothing left behind.** Replacing or removing a reel's video, or deleting the reel, deletes the file on Cloudinary. A daily job deletes uploads that never got saved to a reel.
+- **No autoplay previews.** Videos load only when a visitor opens a reel, and the reel cards show the cover image instead.
+- **Covers.** When a reel has no cover, a frame from the video becomes one. It's a small WebP image stored with the other images (Convex), not on Cloudinary.
+
+The Storage page shows the Cloudinary credits used, storage and views for the last 30 days.
+
+**Connect it (once per deployment).** In the Cloudinary console, open Settings → API Keys and copy the **API environment variable** (`CLOUDINARY_URL=cloudinary://…`). Then, in this folder:
+
+```bash
+npx convex env set CLOUDINARY_URL "cloudinary://<api_key>:<api_secret>@<cloud_name>"
+```
+
+```bash
+npx convex env set CLOUDINARY_URL "cloudinary://<api_key>:<api_secret>@<cloud_name>" --prod
+```
+
+The first command connects the development database and the second connects the live one. Keep the secret out of git and chat. The upload button in the reel editor appears as soon as the key is set.
 
 ## Deploying (Vercel recommended)
 
