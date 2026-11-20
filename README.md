@@ -40,7 +40,7 @@ full dashboard ("SCALE Studio") for leads, hiring and every piece of website con
 
    Open http://localhost:3000 — you'll be redirected to `/en` or `/ar` based on the browser language.
 
-4. **Create the owner account**: open http://localhost:3000/admin — it redirects to `/admin/setup`. Choose a username and a password, and keep **Load starter content** ticked to fill the site with the services, the 12 clients, sample roles and FAQs. Then invite the team from **Team access**.
+4. **Create the owner account**: open http://localhost:3000/admin — it redirects to `/admin/setup`. Choose a username and a password. An empty site is filled with the starter content at the same time: the services, the 12 clients, sample roles and FAQs. Then invite the team from **Team access**.
 
    Starter content can also be loaded from the terminal: `npm run seed`.
 
@@ -117,7 +117,7 @@ The upload button in the reel editor appears once the keys are in. To upload vid
 
 The site is the Vercel project **scale-adv**, live at **https://scale-adv-xi.vercel.app**. Vercel builds it from the GitHub repository `MohameddDahman/scale-adv`: every push to `master` updates the live site, and other branches get their own preview links. This folder is linked to the project too (the `.vercel` folder, which git ignores), for commands like `npx vercel env add`.
 
-1. **First visit.** Open https://scale-adv-xi.vercel.app/admin/setup, enter the setup key (it's in `production-setup-key.local.md`), choose a username and a password, and keep **Load starter content** ticked. The live site fills with the clients, services, roles and FAQs right after.
+1. **First visit.** Open https://scale-adv-xi.vercel.app/admin/setup and choose a username and a password. That's the owner account; from then on, signing in is just that username and password at `/admin`. Do it as soon as the site is live, because until the first account exists, anyone who opens that page could create it.
 
 2. **Ship a change.** If anything in `convex/` changed, update the live backend first:
 
@@ -148,8 +148,6 @@ The site is the Vercel project **scale-adv**, live at **https://scale-adv-xi.ver
 4. **Your own domain:** Vercel → the project → Settings → Domains. Then set `NEXT_PUBLIC_SITE_URL` and rebuild.
 
 Vercel's free Hobby plan is for personal, non-commercial use only. A client's website needs a Pro team.
-
-`SETUP_KEY` is set on the live Convex deployment. A brand-new deployment needs one before going live: `npx convex env set SETUP_KEY "<a long random string>" --prod`.
 
 ## How it works
 

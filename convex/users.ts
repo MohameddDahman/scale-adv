@@ -9,7 +9,6 @@ export const setupStatus = query({
   args: {},
   handler: async (ctx) => ({
     needsSetup: !(await ctx.db.query("users").first()),
-    keyRequired: !!process.env.SETUP_KEY,
   }),
 });
 

@@ -118,23 +118,9 @@ export const signIn = action({
 });
 
 export const setupOwner = action({
-  args: {
-    username: v.string(),
-    password: v.string(),
-    loadStarterContent: v.boolean(),
-    setupKey: v.optional(v.string()),
-    userAgent: v.optional(v.string()),
-  },
+  args: { username: v.string(), password: v.string(), userAgent: v.optional(v.string()) },
   handler: async (ctx, a): Promise<{ token: string }> => {
-    // Optional protection for fresh production deployments: `npx convex env set SETUP_KEY <secret>`.
-    const required = process.env.SETUP_KEY;
-    if (required) {
-      const given = Buffer.from(a.setupKey ?? "");
-      const expected = Buffer.from(required);
-      if (given.length !== expected.length || !timingSafeEqual(given, expected)) {
-        throw new ConvexError({ code: "INVALID", message: "That setup key isn't right.", field: "setupKey" });
-      }
-    }
+    // Only works while the dashboard has no accounts at all (createOwner checks), so it's a one-time step.
     const username = checkUsername(a.username);
     checkPassword(a.password, username);
     const { token, tokenHash } = newToken();
@@ -145,7 +131,8 @@ export const setupOwner = action({
       tokenHash,
       userAgent: a.userAgent,
     });
-    if (a.loadStarterContent) await ctx.runMutation(internal.seed.run, {});
+    // A brand-new site gets the starter content; sections that already have content are left alone.
+    await ctx.runMutation(internal.seed.run, {});
     return { token };
   },
 });

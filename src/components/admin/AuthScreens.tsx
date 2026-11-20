@@ -176,7 +176,7 @@ export function SetupScreen() {
   const router = useRouter();
   const status = useQuery(api.users.setupStatus, {});
   const setupOwner = useAction(api.authNode.setupOwner);
-  const [form, setForm] = useState({ username: "", password: "", starter: true, setupKey: "" });
+  const [form, setForm] = useState({ username: "", password: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<{ field?: string; message?: string }>({});
@@ -197,15 +197,9 @@ export function SetupScreen() {
     setFieldError({});
     setBusy(true);
     try {
-      const { token } = await setupOwner({
-        username: form.username,
-        password: form.password,
-        loadStarterContent: form.starter,
-        setupKey: form.setupKey || undefined,
-        userAgent: agent(),
-      });
+      const { token } = await setupOwner({ username: form.username, password: form.password, userAgent: agent() });
       setToken(token);
-      // The live site was cached before any content existed; show the starter content now.
+      // Setup fills an empty site with the starter content; show it on the website right away.
       refreshSite(token);
       router.replace("/admin");
     } catch (err) {
@@ -220,11 +214,6 @@ export function SetupScreen() {
     <AuthLayout title="Set up SCALE Studio" subtitle="Choose the username and password you'll sign in with. You can add the rest of the team from inside.">
       <FormAlert message={error} />
       <form onSubmit={onSubmit} className="space-y-4">
-        {status?.keyRequired ? (
-          <Field label="Setup key" htmlFor="setupKey" hint="The SETUP_KEY set on the Convex deployment." error={fieldError.field === "setupKey" ? fieldError.message : undefined}>
-            <Input id="setupKey" type="password" autoComplete="off" value={form.setupKey} onChange={(e) => setForm({ ...form, setupKey: e.target.value })} required />
-          </Field>
-        ) : null}
         <Field label="Username" htmlFor="username" hint="Letters and numbers, no spaces." error={fieldError.field === "username" ? fieldError.message : undefined}>
           <Input
             id="username"
@@ -249,13 +238,6 @@ export function SetupScreen() {
             defaultVisible
           />
         </Field>
-        <label className="flex cursor-pointer items-start gap-3 rounded-[5px] border border-a-line bg-a-surface p-3">
-          <input type="checkbox" checked={form.starter} onChange={(e) => setForm({ ...form, starter: e.target.checked })} className="mt-0.5 size-4 accent-[var(--color-signal)]" />
-          <span>
-            <span className="block text-[0.84rem] font-semibold">Load starter content</span>
-            <span className="block text-[0.78rem] text-a-muted">Services, the 12 clients, sample roles and FAQs — edit or delete anything later.</span>
-          </span>
-        </label>
         <Button type="submit" variant="primary" className="w-full" loading={busy}>
           Create account
         </Button>
