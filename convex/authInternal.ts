@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { internalMutation, internalQuery, type MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { logActivity } from "./lib/activity";
-import { can, getSession, normalizeEmail, SESSION_TTL_MS } from "./lib/auth";
+import { can, getSession, normalizeUsername, SESSION_TTL_MS } from "./lib/auth";
 import { hitLimit } from "./lib/rateLimit";
 import { vRole } from "./lib/validators";
 
@@ -18,12 +18,19 @@ async function insertSession(ctx: MutationCtx, userId: Id<"users">, tokenHash: s
   });
 }
 
-export const getUserByEmail = internalQuery({
-  args: { email: v.string() },
-  handler: async (ctx, { email }) =>
+async function userByUsername(ctx: MutationCtx, username: string) {
+  return await ctx.db
+    .query("users")
+    .withIndex("by_username", (q) => q.eq("username", normalizeUsername(username)))
+    .unique();
+}
+
+export const getUserByUsername = internalQuery({
+  args: { username: v.string() },
+  handler: async (ctx, { username }) =>
     await ctx.db
       .query("users")
-      .withIndex("by_email", (q) => q.eq("email", normalizeEmail(email)))
+      .withIndex("by_username", (q) => q.eq("username", normalizeUsername(username)))
       .unique(),
 });
 
@@ -47,8 +54,8 @@ export const createSession = internalMutation({
 
 export const createOwner = internalMutation({
   args: {
+    username: v.string(),
     name: v.string(),
-    email: v.string(),
     passwordHash: v.string(),
     tokenHash: v.string(),
     userAgent: v.optional(v.string()),
@@ -58,9 +65,10 @@ export const createOwner = internalMutation({
       throw new ConvexError({ code: "SETUP_DONE", message: "This dashboard is already set up. Sign in instead." });
     }
     const now = Date.now();
+    const username = normalizeUsername(a.username);
     const userId = await ctx.db.insert("users", {
-      email: normalizeEmail(a.email),
-      name: a.name.trim(),
+      username,
+      name: a.name.trim() || username,
       role: "owner",
       active: true,
       passwordHash: a.passwordHash,
@@ -76,7 +84,7 @@ export const createOwner = internalMutation({
 });
 
 export const insertInvite = internalMutation({
-  args: { actorId: v.id("users"), email: v.string(), role: vRole, tokenHash: v.string() },
+  args: { actorId: v.id("users"), username: v.string(), name: v.string(), role: vRole, tokenHash: v.string() },
   handler: async (ctx, a) => {
     const actor = await ctx.db.get("users", a.actorId);
     if (!actor || !can(actor.role, "users")) {
@@ -85,32 +93,31 @@ export const insertInvite = internalMutation({
     if (a.role === "owner" && actor.role !== "owner") {
       throw new ConvexError({ code: "FORBIDDEN", message: "Only the owner can invite another owner." });
     }
-    const email = normalizeEmail(a.email);
-    const existing = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) => q.eq("email", email))
-      .unique();
-    if (existing) throw new ConvexError({ code: "INVALID", message: "Someone with this email already has access." });
+    const username = normalizeUsername(a.username);
+    if (await userByUsername(ctx, username)) {
+      throw new ConvexError({ code: "INVALID", message: "Someone already has this username. Pick another one.", field: "username" });
+    }
+    // A new invite for the same username replaces the old link.
     const pending = await ctx.db
       .query("invites")
-      .withIndex("by_email", (q) => q.eq("email", email))
+      .withIndex("by_username", (q) => q.eq("username", username))
       .collect();
     for (const p of pending) if (!p.acceptedAt) await ctx.db.delete("invites", p._id);
     await ctx.db.insert("invites", {
-      email,
+      username,
+      name: a.name.trim() || username,
       role: a.role,
       tokenHash: a.tokenHash,
       invitedBy: a.actorId,
       expiresAt: Date.now() + INVITE_TTL_MS,
     });
-    await logActivity(ctx, actor, "invited", "user", `${email} as ${a.role}`);
+    await logActivity(ctx, actor, "invited", "user", `${username} as ${a.role}`);
   },
 });
 
 export const consumeInvite = internalMutation({
   args: {
     inviteTokenHash: v.string(),
-    name: v.string(),
     passwordHash: v.string(),
     sessionTokenHash: v.string(),
     userAgent: v.optional(v.string()),
@@ -123,15 +130,13 @@ export const consumeInvite = internalMutation({
     if (!invite || invite.acceptedAt || invite.expiresAt < Date.now()) {
       throw new ConvexError({ code: "INVALID_LINK", message: "This invite link has expired or was already used." });
     }
-    const taken = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) => q.eq("email", invite.email))
-      .unique();
-    if (taken) throw new ConvexError({ code: "INVALID_LINK", message: "This email already has an account. Sign in instead." });
+    if (await userByUsername(ctx, invite.username)) {
+      throw new ConvexError({ code: "INVALID_LINK", message: "This username already has an account. Sign in instead." });
+    }
     const now = Date.now();
     const userId = await ctx.db.insert("users", {
-      email: invite.email,
-      name: a.name.trim(),
+      username: invite.username,
+      name: invite.name,
       role: invite.role,
       active: true,
       passwordHash: a.passwordHash,
@@ -142,7 +147,7 @@ export const consumeInvite = internalMutation({
     await ctx.db.patch("invites", invite._id, { acceptedAt: now });
     await insertSession(ctx, userId, a.sessionTokenHash, a.userAgent);
     const user = await ctx.db.get("users", userId);
-    await logActivity(ctx, user, "joined", "user", `${invite.email} (${invite.role})`);
+    await logActivity(ctx, user, "joined", "user", `${invite.username} (${invite.role})`);
   },
 });
 
@@ -162,7 +167,7 @@ export const insertReset = internalMutation({
       tokenHash: a.tokenHash,
       expiresAt: Date.now() + RESET_TTL_MS,
     });
-    await logActivity(ctx, actor, "created reset link", "user", target.email);
+    await logActivity(ctx, actor, "created reset link", "user", target.username);
   },
 });
 
@@ -191,7 +196,7 @@ export const consumeReset = internalMutation({
       .collect();
     for (const s of sessions) await ctx.db.delete("sessions", s._id);
     await insertSession(ctx, user._id, a.sessionTokenHash, a.userAgent);
-    await logActivity(ctx, user, "reset password", "user", user.email);
+    await logActivity(ctx, user, "reset password", "user", user.username);
   },
 });
 
@@ -205,6 +210,6 @@ export const setPassword = internalMutation({
       .collect();
     for (const s of sessions) if (s.tokenHash !== a.keepTokenHash) await ctx.db.delete("sessions", s._id);
     const user = await ctx.db.get("users", a.userId);
-    await logActivity(ctx, user, "changed password", "user", user?.email ?? "");
+    await logActivity(ctx, user, "changed password", "user", user?.username ?? "");
   },
 });

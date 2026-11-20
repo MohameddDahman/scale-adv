@@ -48,8 +48,23 @@ function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: R
   );
 }
 
-function PasswordInput({ id, value, onChange, autoComplete, invalid }: { id: string; value: string; onChange: (v: string) => void; autoComplete: string; invalid?: boolean }) {
-  const [show, setShow] = useState(false);
+/** Password field with a show/hide toggle. New passwords start visible, so there's no "confirm password" box to fill in. */
+export function PasswordInput({
+  id,
+  value,
+  onChange,
+  autoComplete,
+  invalid,
+  defaultVisible = false,
+}: {
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  autoComplete: string;
+  invalid?: boolean;
+  defaultVisible?: boolean;
+}) {
+  const [show, setShow] = useState(defaultVisible);
   return (
     <div className="relative">
       <Input
@@ -96,7 +111,7 @@ export function LoginScreen() {
   const target = next && next.startsWith("/admin") ? next : "/admin";
   const setup = useQuery(api.users.setupStatus, {});
   const signIn = useAction(api.authNode.signIn);
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,7 +128,7 @@ export function LoginScreen() {
     setBusy(true);
     setError(null);
     try {
-      const { token } = await signIn({ email, password, userAgent: agent() });
+      const { token } = await signIn({ username, password, userAgent: agent() });
       setToken(token);
       router.replace(target);
     } catch (err) {
@@ -123,11 +138,21 @@ export function LoginScreen() {
   }
 
   return (
-    <AuthLayout title="Sign in" subtitle="Use the email your invite was sent to.">
+    <AuthLayout title="Sign in" subtitle="With your username and password.">
       <FormAlert message={error} />
       <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="Email" htmlFor="email">
-          <Input id="email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+        <Field label="Username" htmlFor="username">
+          <Input
+            id="username"
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            autoFocus
+          />
         </Field>
         <Field label="Password" htmlFor="password">
           <PasswordInput id="password" value={password} onChange={setPassword} autoComplete="current-password" />
@@ -151,7 +176,7 @@ export function SetupScreen() {
   const router = useRouter();
   const status = useQuery(api.users.setupStatus, {});
   const setupOwner = useAction(api.authNode.setupOwner);
-  const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "", starter: true, setupKey: "" });
+  const [form, setForm] = useState({ username: "", password: "", starter: true, setupKey: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<{ field?: string; message?: string }>({});
@@ -170,12 +195,10 @@ export function SetupScreen() {
     e.preventDefault();
     setError(null);
     setFieldError({});
-    if (form.password !== form.confirm) return setFieldError({ field: "confirm", message: "The passwords don't match." });
     setBusy(true);
     try {
       const { token } = await setupOwner({
-        name: form.name,
-        email: form.email,
+        username: form.username,
         password: form.password,
         loadStarterContent: form.starter,
         setupKey: form.setupKey || undefined,
@@ -194,7 +217,7 @@ export function SetupScreen() {
   }
 
   return (
-    <AuthLayout title="Set up SCALE Studio" subtitle="Create the owner account. You'll invite the rest of the team from inside.">
+    <AuthLayout title="Set up SCALE Studio" subtitle="Choose the username and password you'll sign in with. You can add the rest of the team from inside.">
       <FormAlert message={error} />
       <form onSubmit={onSubmit} className="space-y-4">
         {status?.keyRequired ? (
@@ -202,17 +225,29 @@ export function SetupScreen() {
             <Input id="setupKey" type="password" autoComplete="off" value={form.setupKey} onChange={(e) => setForm({ ...form, setupKey: e.target.value })} required />
           </Field>
         ) : null}
-        <Field label="Your name" htmlFor="name" error={fieldError.field === "name" ? fieldError.message : undefined}>
-          <Input id="name" autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required autoFocus />
+        <Field label="Username" htmlFor="username" hint="Letters and numbers, no spaces." error={fieldError.field === "username" ? fieldError.message : undefined}>
+          <Input
+            id="username"
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            value={form.username}
+            onChange={(e) => setForm({ ...form, username: e.target.value })}
+            aria-invalid={fieldError.field === "username" || undefined}
+            required
+            autoFocus
+          />
         </Field>
-        <Field label="Work email" htmlFor="email" error={fieldError.field === "email" ? fieldError.message : undefined}>
-          <Input id="email" type="email" autoComplete="username" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-        </Field>
-        <Field label="Password" htmlFor="password" hint="At least 10 characters." error={fieldError.field === "password" ? fieldError.message : undefined}>
-          <PasswordInput id="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} autoComplete="new-password" />
-        </Field>
-        <Field label="Confirm password" htmlFor="confirm" error={fieldError.field === "confirm" ? fieldError.message : undefined}>
-          <PasswordInput id="confirm" value={form.confirm} onChange={(v) => setForm({ ...form, confirm: v })} autoComplete="new-password" />
+        <Field label="Password" htmlFor="password" hint="At least 4 characters." error={fieldError.field === "password" ? fieldError.message : undefined}>
+          <PasswordInput
+            id="password"
+            value={form.password}
+            onChange={(v) => setForm({ ...form, password: v })}
+            autoComplete="new-password"
+            invalid={fieldError.field === "password"}
+            defaultVisible
+          />
         </Field>
         <label className="flex cursor-pointer items-start gap-3 rounded-[5px] border border-a-line bg-a-surface p-3">
           <input type="checkbox" checked={form.starter} onChange={(e) => setForm({ ...form, starter: e.target.checked })} className="mt-0.5 size-4 accent-[var(--color-signal)]" />
@@ -222,7 +257,7 @@ export function SetupScreen() {
           </span>
         </label>
         <Button type="submit" variant="primary" className="w-full" loading={busy}>
-          Create owner account
+          Create account
         </Button>
       </form>
     </AuthLayout>
@@ -237,7 +272,7 @@ export function InviteScreen() {
   const token = useSearchParams().get("token") ?? "";
   const info = useQuery(api.users.inviteInfo, token ? { inviteToken: token } : "skip");
   const accept = useAction(api.authNode.acceptInvite);
-  const [form, setForm] = useState({ name: "", password: "", confirm: "" });
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -254,10 +289,9 @@ export function InviteScreen() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (form.password !== form.confirm) return setError("The passwords don't match.");
     setBusy(true);
     try {
-      const result = await accept({ inviteToken: token, name: form.name, password: form.password, userAgent: agent() });
+      const result = await accept({ inviteToken: token, password, userAgent: agent() });
       setToken(result.token);
       router.replace("/admin");
     } catch (err) {
@@ -269,19 +303,22 @@ export function InviteScreen() {
   return (
     <AuthLayout
       title="Join SCALE Studio"
-      subtitle={info?.valid ? <>You were invited as <strong className="text-a-text">{ROLE_LABEL[info.role] ?? info.role}</strong> with {info.email}.</> : "Checking your invite…"}
+      subtitle={
+        info?.valid ? (
+          <>
+            You&apos;re joining as <strong className="text-a-text">{ROLE_LABEL[info.role] ?? info.role}</strong>. Your username is{" "}
+            <strong className="text-a-text">{info.username}</strong>.
+          </>
+        ) : (
+          "Checking your invite…"
+        )
+      }
     >
       <FormAlert message={error} />
       <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="Your name" htmlFor="name">
-          <Input id="name" autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required autoFocus />
-        </Field>
-        <input type="email" autoComplete="username" value={info?.valid ? info.email : ""} readOnly hidden />
-        <Field label="Choose a password" htmlFor="password" hint="At least 10 characters.">
-          <PasswordInput id="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} autoComplete="new-password" />
-        </Field>
-        <Field label="Confirm password" htmlFor="confirm">
-          <PasswordInput id="confirm" value={form.confirm} onChange={(v) => setForm({ ...form, confirm: v })} autoComplete="new-password" />
+        <input type="text" autoComplete="username" value={info?.valid ? info.username : ""} readOnly hidden />
+        <Field label="Choose a password" htmlFor="password" hint="At least 4 characters.">
+          <PasswordInput id="password" value={password} onChange={setPassword} autoComplete="new-password" defaultVisible />
         </Field>
         <Button type="submit" variant="primary" className="w-full" loading={busy} disabled={!info?.valid}>
           Create account
@@ -297,7 +334,7 @@ export function ResetScreen() {
   const token = useSearchParams().get("token") ?? "";
   const info = useQuery(api.users.resetInfo, token ? { resetToken: token } : "skip");
   const complete = useAction(api.authNode.completeReset);
-  const [form, setForm] = useState({ password: "", confirm: "" });
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -314,10 +351,9 @@ export function ResetScreen() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (form.password !== form.confirm) return setError("The passwords don't match.");
     setBusy(true);
     try {
-      const result = await complete({ resetToken: token, password: form.password, userAgent: agent() });
+      const result = await complete({ resetToken: token, password, userAgent: agent() });
       setToken(result.token);
       router.replace("/admin");
     } catch (err) {
@@ -327,15 +363,23 @@ export function ResetScreen() {
   }
 
   return (
-    <AuthLayout title="Set a new password" subtitle={info?.valid ? <>For {info.email}. You’ll be signed out everywhere else.</> : "Checking your link…"}>
+    <AuthLayout
+      title="Set a new password"
+      subtitle={
+        info?.valid ? (
+          <>
+            For <strong className="text-a-text">{info.username}</strong>. You’ll be signed out everywhere else.
+          </>
+        ) : (
+          "Checking your link…"
+        )
+      }
+    >
       <FormAlert message={error} />
       <form onSubmit={onSubmit} className="space-y-4">
-        <input type="email" autoComplete="username" value={info?.valid ? info.email : ""} readOnly hidden />
-        <Field label="New password" htmlFor="password" hint="At least 10 characters.">
-          <PasswordInput id="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} autoComplete="new-password" />
-        </Field>
-        <Field label="Confirm password" htmlFor="confirm">
-          <PasswordInput id="confirm" value={form.confirm} onChange={(v) => setForm({ ...form, confirm: v })} autoComplete="new-password" />
+        <input type="text" autoComplete="username" value={info?.valid ? info.username : ""} readOnly hidden />
+        <Field label="New password" htmlFor="password" hint="At least 4 characters.">
+          <PasswordInput id="password" value={password} onChange={setPassword} autoComplete="new-password" defaultVisible />
         </Field>
         <Button type="submit" variant="primary" className="w-full" loading={busy} disabled={!info?.valid}>
           Save password

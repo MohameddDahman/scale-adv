@@ -22,7 +22,7 @@ export function TeamAccessPage() {
   const createReset = useAdminAction(api.authNode.createResetLink);
   const { toast, confirm } = useFeedback();
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [form, setForm] = useState<{ email: string; role: Role }>({ email: "", role: "editor" });
+  const [form, setForm] = useState<{ username: string; role: Role }>({ username: "", role: "editor" });
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState<{ title: string; url: string; who: string } | null>(null);
 
@@ -57,7 +57,7 @@ export function TeamAccessPage() {
                       {u.name} {self ? <span className="text-[0.75rem] font-normal text-a-faint">(you)</span> : null}
                     </p>
                     <p className="truncate text-[0.78rem] text-a-muted">
-                      {u.email} · {u.lastLoginAt ? `last seen ${relativeTime(u.lastLoginAt)}` : "never signed in"}
+                      {u.username} · {u.lastLoginAt ? `last seen ${relativeTime(u.lastLoginAt)}` : "never signed in"}
                     </p>
                   </div>
                   {!u.active ? <Badge tone="danger">Disabled</Badge> : null}
@@ -128,7 +128,7 @@ export function TeamAccessPage() {
             {data.invites.map((i) => (
               <li key={i._id} className="flex flex-wrap items-center gap-3 px-4 py-3">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{i.email}</p>
+                  <p className="truncate font-semibold">{i.name}</p>
                   <p className="text-[0.78rem] text-a-muted">
                     {ROLE_LABEL[i.role]} · invited {relativeTime(i.createdAt)}
                   </p>
@@ -168,10 +168,11 @@ export function TeamAccessPage() {
               onClick={async () => {
                 setBusy(true);
                 try {
-                  const { inviteToken } = await createInvite({ email: form.email, role: form.role });
+                  const { inviteToken } = await createInvite({ username: form.username, role: form.role });
+                  const who = form.username.trim();
                   setInviteOpen(false);
-                  setLink({ title: `Invite link for ${form.email}`, url: `${origin}/admin/invite?token=${inviteToken}`, who: form.email });
-                  setForm({ email: "", role: "editor" });
+                  setLink({ title: `Invite link for ${who}`, url: `${origin}/admin/invite?token=${inviteToken}`, who });
+                  setForm({ username: "", role: "editor" });
                 } catch (e) {
                   toast(errorMessage(e), "error");
                 } finally {
@@ -185,8 +186,17 @@ export function TeamAccessPage() {
         }
       >
         <div className="space-y-4">
-          <Field label="Email" htmlFor="inv-email" hint="They'll sign in with this email.">
-            <Input id="inv-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} autoFocus />
+          <Field label="Username" htmlFor="inv-username" hint="They'll sign in with this and choose their own password. Letters and numbers, no spaces.">
+            <Input
+              id="inv-username"
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={form.username}
+              onChange={(e) => setForm({ ...form, username: e.target.value })}
+              autoFocus
+            />
           </Field>
           <Field label="Role" htmlFor="inv-role" hint={ROLE_HELP[form.role]}>
             <Select id="inv-role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>

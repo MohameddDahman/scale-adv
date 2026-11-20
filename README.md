@@ -40,7 +40,7 @@ full dashboard ("SCALE Studio") for leads, hiring and every piece of website con
 
    Open http://localhost:3000 — you'll be redirected to `/en` or `/ar` based on the browser language.
 
-4. **Create the owner account**: open http://localhost:3000/admin — it redirects to `/admin/setup`. Keep **Load starter content** ticked to fill the site with the services, the 12 clients, sample roles and FAQs. Then invite the team from **Team access**.
+4. **Create the owner account**: open http://localhost:3000/admin — it redirects to `/admin/setup`. Choose a username and a password, and keep **Load starter content** ticked to fill the site with the services, the 12 clients, sample roles and FAQs. Then invite the team from **Team access**.
 
    Starter content can also be loaded from the terminal: `npm run seed`.
 
@@ -105,30 +105,30 @@ npx vercel env add CLOUDINARY_API_KEY production
 npx vercel env add CLOUDINARY_API_SECRET production
 ```
 
-Then deploy again so the live site picks them up:
+Then rebuild the live site so it picks them up:
 
 ```bash
-npx vercel deploy --prod
+npx vercel redeploy scale-adv-xi.vercel.app
 ```
 
 The upload button in the reel editor appears once the keys are in. To upload videos while running the site on your computer, also add the three values to `.env.local` as `CLOUDINARY_CLOUD_NAME=…`, `CLOUDINARY_API_KEY=…` and `CLOUDINARY_API_SECRET=…` (git ignores that file). Keep the secret out of git and chat.
 
 ## Deploying (Vercel)
 
-The site is the Vercel project **scale-adv**, live at **https://scale-adv-xi.vercel.app**. This folder is linked to it (the `.vercel` folder, which git ignores).
+The site is the Vercel project **scale-adv**, live at **https://scale-adv-xi.vercel.app**. Vercel builds it from the GitHub repository `MohameddDahman/scale-adv`: every push to `master` updates the live site, and other branches get their own preview links. This folder is linked to the project too (the `.vercel` folder, which git ignores), for commands like `npx vercel env add`.
 
-1. **First visit.** Open https://scale-adv-xi.vercel.app/admin/setup, enter the setup key (it's in `production-setup-key.local.md`), create the owner account, and keep **Load starter content** ticked. The live site fills with the clients, services, roles and FAQs right after.
+1. **First visit.** Open https://scale-adv-xi.vercel.app/admin/setup, enter the setup key (it's in `production-setup-key.local.md`), choose a username and a password, and keep **Load starter content** ticked. The live site fills with the clients, services, roles and FAQs right after.
 
-2. **Deploy a new version.** If anything in `convex/` changed, update the live backend first:
+2. **Ship a change.** If anything in `convex/` changed, update the live backend first:
 
    ```bash
    npx convex deploy
    ```
 
-   Then upload and build the site:
+   Then push to GitHub, and Vercel builds and publishes the site:
 
    ```bash
-   npx vercel deploy --prod
+   git push
    ```
 
    To have every production build update the backend by itself, add a deploy key: in the Convex dashboard, open the production deployment → Settings → Deploy keys, create one, then run `npx vercel env add CONVEX_DEPLOY_KEY production` and paste it. `vercel.json` then runs `npx convex deploy` before each production build.
@@ -143,11 +143,9 @@ The site is the Vercel project **scale-adv**, live at **https://scale-adv-xi.ver
    | `CONVEX_DEPLOY_KEY` | Production | Optional (see step 2) |
    | `NEXT_PUBLIC_SITE_URL` | Production | Optional. Set it to your own domain once it's connected, e.g. `https://scale-adv.com`. Until then, links, the sitemap and job listings use the vercel.app address. |
 
-   `NEXT_PUBLIC_CONVEX_SITE_URL` is optional too: CV uploads use the deployment's `.convex.site` address, worked out from `NEXT_PUBLIC_CONVEX_URL`. Change a variable, then deploy again for it to take effect.
+   `NEXT_PUBLIC_CONVEX_SITE_URL` is optional too: CV uploads use the deployment's `.convex.site` address, worked out from `NEXT_PUBLIC_CONVEX_URL`. After changing a variable, rebuild with `npx vercel redeploy scale-adv-xi.vercel.app` (or push a commit) for it to take effect.
 
-4. **Your own domain:** Vercel → the project → Settings → Domains. Then set `NEXT_PUBLIC_SITE_URL` and deploy again.
-
-5. **Deploy on every push (optional):** the project isn't connected to the GitHub repository, so pushing doesn't deploy. To change that, open Vercel → the project → Settings → Git and connect `scale-adv`.
+4. **Your own domain:** Vercel → the project → Settings → Domains. Then set `NEXT_PUBLIC_SITE_URL` and rebuild.
 
 Vercel's free Hobby plan is for personal, non-commercial use only. A client's website needs a Pro team.
 
@@ -171,7 +169,7 @@ Vercel's free Hobby plan is for personal, non-commercial use only. A client's we
 - **Media library** — images are shrunk and converted to WebP before upload; reuse them anywhere. Each file shows where it's used, and a "Not used" filter lists the ones you can delete.
 - **Storage** — how much of the free plan's 1 GB is used, the largest files, and one-click clean-up of unused images and old CV files.
 - **Site settings** — homepage headline, numbers, contact, social, careers page copy, SEO, announcement bar.
-- **Team access** — invite links (shown once; send on WhatsApp), roles, disable access, password-reset links. **Activity log** of every change. Light/dark theme, `Ctrl+K` command palette.
+- **Team access** — invite links (you choose their username, they choose a password; the link is shown once, send it on WhatsApp), roles, disable access, password-reset links. **Activity log** of every change. Light/dark theme, `Ctrl+K` command palette.
 
 #### Roles
 | Role | Can use |
@@ -182,7 +180,10 @@ Vercel's free Hobby plan is for personal, non-commercial use only. A client's we
 | Recruiter | Jobs and applications |
 | Sales | Leads |
 
-There's no email service connected, so invites and password resets are links you copy and send yourself.
+#### Signing in
+Everyone signs in with a **username and a password**; capitals and spaces around the username don't matter. Passwords can be easy: 4 characters is enough. The only ones refused are the few anyone would guess first (1234, 123456, password, admin, the site's own name, or the username itself). Each username gets 6 tries every 15 minutes and 30 a day, which is what keeps short passwords safe.
+
+There's no email service connected, so invites and password resets are links you copy and send yourself. If the only owner forgets the password, nobody can make a reset link for them, so add a second owner or admin.
 
 ## Project layout
 

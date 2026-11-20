@@ -73,7 +73,8 @@ export const list = query({
       users: users.map(publicUser),
       invites: invites.map((i) => ({
         _id: i._id,
-        email: i.email,
+        username: i.username,
+        name: i.name,
         role: i.role,
         expiresAt: i.expiresAt,
         expired: i.expiresAt < Date.now(),
@@ -99,7 +100,7 @@ export const updateRole = mutation({
       }
     }
     await ctx.db.patch("users", a.userId, { role: a.role });
-    await logActivity(ctx, actor, "changed role", "user", `${target.email} → ${a.role}`);
+    await logActivity(ctx, actor, "changed role", "user", `${target.username} → ${a.role}`);
   },
 });
 
@@ -123,7 +124,7 @@ export const setActive = mutation({
         .collect();
       for (const s of sessions) await ctx.db.delete("sessions", s._id);
     }
-    await logActivity(ctx, actor, a.active ? "enabled" : "disabled", "user", target.email);
+    await logActivity(ctx, actor, a.active ? "enabled" : "disabled", "user", target.username);
   },
 });
 
@@ -134,7 +135,7 @@ export const revokeInvite = mutation({
     const invite = await ctx.db.get("invites", a.inviteId);
     if (!invite) return;
     await ctx.db.delete("invites", a.inviteId);
-    await logActivity(ctx, actor, "revoked invite", "user", invite.email);
+    await logActivity(ctx, actor, "revoked invite", "user", invite.username);
   },
 });
 
@@ -147,7 +148,7 @@ export const inviteInfo = query({
       .withIndex("by_token", (q) => q.eq("tokenHash", sha256Hex(inviteToken)))
       .unique();
     if (!invite || invite.acceptedAt || invite.expiresAt < Date.now()) return { valid: false as const };
-    return { valid: true as const, email: invite.email, role: invite.role };
+    return { valid: true as const, username: invite.username, role: invite.role };
   },
 });
 
@@ -160,7 +161,7 @@ export const resetInfo = query({
       .unique();
     if (!reset || reset.usedAt || reset.expiresAt < Date.now()) return { valid: false as const };
     const user = await ctx.db.get("users", reset.userId);
-    return user ? { valid: true as const, email: user.email } : { valid: false as const };
+    return user ? { valid: true as const, username: user.username } : { valid: false as const };
   },
 });
 
@@ -170,6 +171,6 @@ export const staff = query({
   handler: async (ctx, { token }) => {
     await requireUser(ctx, token);
     const users = await ctx.db.query("users").collect();
-    return users.filter((u) => u.active).map((u) => ({ _id: u._id, name: u.name, email: u.email, role: u.role }));
+    return users.filter((u) => u.active).map((u) => ({ _id: u._id, name: u.name, username: u.username, role: u.role }));
   },
 });

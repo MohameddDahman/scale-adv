@@ -24,8 +24,17 @@ export function can(role: Role, permission: Permission): boolean {
 
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-export function normalizeEmail(email: string) {
-  return email.trim().toLowerCase();
+/** Usernames ignore case and surrounding spaces: "Amir " and "amir" are the same account. */
+export function normalizeUsername(username: string) {
+  return username.trim().toLowerCase();
+}
+
+/** Why a (normalized) username can't be used, or null when it's fine. */
+export function usernameProblem(username: string): string | null {
+  if (username.length < 2) return "Use at least 2 characters.";
+  if (username.length > 32) return "Use 32 characters at most.";
+  if (!/^[\p{L}\p{N}._@-]+$/u.test(username)) return "Use letters and numbers (dots, dashes and underscores are fine), with no spaces.";
+  return null;
 }
 
 export async function getSession(ctx: QueryCtx | MutationCtx, token: string | undefined | null) {
@@ -60,7 +69,7 @@ export async function requireUser(
 export function publicUser(user: Doc<"users">) {
   return {
     _id: user._id,
-    email: user.email,
+    username: user.username,
     name: user.name,
     role: user.role,
     active: user.active,

@@ -86,7 +86,7 @@ export function byOrder<T extends { order: number }>(a: T, b: T) {
 }
 
 export function displayName(user: Doc<"users"> | null | undefined) {
-  return user?.name || user?.email || "System";
+  return user?.name || user?.username || "System";
 }
 
 export const DAY = 24 * 60 * 60 * 1000;

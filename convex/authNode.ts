@@ -3,13 +3,17 @@
  * Password handling runs in the Node runtime so we can use scrypt and a
  * cryptographically secure random source for tokens. Tokens are returned
  * once; only their SHA-256 hash is stored.
+ *
+ * People sign in with a username and a password. Passwords may be short and
+ * easy on purpose; what keeps them safe is the sign-in limit (a few tries per
+ * 15 minutes and per day for each username) and refusing the handful of
+ * passwords that attackers try first.
  */
 import { createHash, randomBytes, scrypt, timingSafeEqual, type ScryptOptions } from "node:crypto";
 import { ConvexError, v } from "convex/values";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { action } from "./_generated/server";
-import { can, normalizeEmail } from "./lib/auth";
-import { isEmail } from "./lib/util";
+import { can, normalizeUsername, usernameProblem } from "./lib/auth";
 import { vRole } from "./lib/validators";
 
 const PARAMS: ScryptOptions = { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
@@ -53,38 +57,59 @@ function newToken() {
 
 const hashOf = (token: string) => createHash("sha256").update(token).digest("hex");
 
-function checkPassword(password: string, email?: string) {
-  if (password.length < 10) {
-    throw new ConvexError({ code: "WEAK_PASSWORD", message: "Use at least 10 characters.", field: "password" });
+const MIN_PASSWORD = 4;
+/** The first passwords anyone guessing would try, including this site's own name. */
+const FIRST_GUESSES = new Set([
+  "1234", "12345", "123456", "1234567", "12345678", "123456789", "1234567890", "4321", "54321", "654321",
+  "0000", "00000", "000000", "1111", "11111", "111111", "123123", "112233", "121212",
+  "password", "passw0rd", "password1", "qwerty", "qwerty123", "asdf", "abcd", "abc123", "iloveyou",
+  "admin", "admin123", "letmein", "welcome", "test", "test123", "user", "login",
+  "scale", "scaleadv", "scale123", "scale2025", "scale2026", "scalestudio",
+]);
+
+function checkPassword(password: string, username?: string) {
+  if (password.length < MIN_PASSWORD) {
+    throw new ConvexError({ code: "WEAK_PASSWORD", message: `Use at least ${MIN_PASSWORD} characters.`, field: "password" });
   }
   if (password.length > 200) {
     throw new ConvexError({ code: "WEAK_PASSWORD", message: "That password is too long.", field: "password" });
   }
-  const local = email?.split("@")[0].toLowerCase() ?? "";
-  if (local.length >= 4 && password.toLowerCase().includes(local)) {
-    throw new ConvexError({ code: "WEAK_PASSWORD", message: "Don't include your email in the password.", field: "password" });
+  const lower = password.toLowerCase();
+  if (FIRST_GUESSES.has(lower) || (username && lower === normalizeUsername(username))) {
+    throw new ConvexError({
+      code: "WEAK_PASSWORD",
+      message: "That's one of the first passwords people guess. Add a few letters or numbers that mean something to you.",
+      field: "password",
+    });
   }
 }
 
+function checkUsername(raw: string) {
+  const username = normalizeUsername(raw);
+  const problem = usernameProblem(username);
+  if (problem) throw new ConvexError({ code: "INVALID", message: problem, field: "username" });
+  return username;
+}
+
 export const signIn = action({
-  args: { email: v.string(), password: v.string(), userAgent: v.optional(v.string()) },
+  args: { username: v.string(), password: v.string(), userAgent: v.optional(v.string()) },
   handler: async (ctx, a): Promise<{ token: string }> => {
-    const email = normalizeEmail(a.email);
-    const allowed = await ctx.runMutation(internal.authInternal.hit, {
-      key: `login:${email}`,
-      limit: 8,
-      windowMs: 15 * 60 * 1000,
-    });
-    if (!allowed) {
+    const username = normalizeUsername(a.username);
+    const recent = await ctx.runMutation(internal.authInternal.hit, { key: `login:${username}`, limit: 6, windowMs: 15 * 60 * 1000 });
+    if (!recent) {
       throw new ConvexError({ code: "RATE_LIMITED", message: "Too many attempts. Try again in 15 minutes." });
     }
-    const user = await ctx.runQuery(internal.authInternal.getUserByEmail, { email });
+    const today = await ctx.runMutation(internal.authInternal.hit, { key: `login-day:${username}`, limit: 30, windowMs: 24 * 60 * 60 * 1000 });
+    if (!today) {
+      throw new ConvexError({ code: "RATE_LIMITED", message: "Too many sign-in attempts today. Try again tomorrow, or ask an owner for a reset link." });
+    }
+    const user = await ctx.runQuery(internal.authInternal.getUserByUsername, { username });
     if (!user || !user.active) {
       await burnTime(a.password);
-      throw new ConvexError({ code: "BAD_CREDENTIALS", message: "That email and password don't match." });
+      throw new ConvexError({ code: "BAD_CREDENTIALS", message: "That username and password don't match." });
     }
     if (!(await verifyPassword(a.password, user.passwordHash))) {
-      throw new ConvexError({ code: "BAD_CREDENTIALS", message: "That email and password don't match." });
+      throw new ConvexError({ code: "BAD_CREDENTIALS", message: "That username and password don't match." });
     }
     const { token, tokenHash } = newToken();
     await ctx.runMutation(internal.authInternal.createSession, { userId: user._id, tokenHash, userAgent: a.userAgent });
@@ -94,8 +119,7 @@ export const signIn = action({
 
 export const setupOwner = action({
   args: {
-    name: v.string(),
-    email: v.string(),
+    username: v.string(),
     password: v.string(),
     loadStarterContent: v.boolean(),
     setupKey: v.optional(v.string()),
@@ -111,14 +135,12 @@ export const setupOwner = action({
         throw new ConvexError({ code: "INVALID", message: "That setup key isn't right.", field: "setupKey" });
       }
     }
-    const email = normalizeEmail(a.email);
-    if (!a.name.trim()) throw new ConvexError({ code: "INVALID", message: "Add your name.", field: "name" });
-    if (!isEmail(email)) throw new ConvexError({ code: "INVALID", message: "Enter a valid email.", field: "email" });
-    checkPassword(a.password, email);
+    const username = checkUsername(a.username);
+    checkPassword(a.password, username);
     const { token, tokenHash } = newToken();
     await ctx.runMutation(internal.authInternal.createOwner, {
-      name: a.name,
-      email,
+      username,
+      name: a.username.trim(),
       passwordHash: await hashPassword(a.password),
       tokenHash,
       userAgent: a.userAgent,
@@ -129,14 +151,14 @@ export const setupOwner = action({
 });
 
 export const acceptInvite = action({
-  args: { inviteToken: v.string(), name: v.string(), password: v.string(), userAgent: v.optional(v.string()) },
+  args: { inviteToken: v.string(), password: v.string(), userAgent: v.optional(v.string()) },
   handler: async (ctx, a): Promise<{ token: string }> => {
-    if (!a.name.trim()) throw new ConvexError({ code: "INVALID", message: "Add your name.", field: "name" });
-    checkPassword(a.password);
+    const info = await ctx.runQuery(api.users.inviteInfo, { inviteToken: a.inviteToken });
+    if (!info.valid) throw new ConvexError({ code: "INVALID_LINK", message: "This invite link has expired or was already used." });
+    checkPassword(a.password, info.username);
     const { token, tokenHash } = newToken();
     await ctx.runMutation(internal.authInternal.consumeInvite, {
       inviteTokenHash: hashOf(a.inviteToken),
-      name: a.name,
       passwordHash: await hashPassword(a.password),
       sessionTokenHash: tokenHash,
       userAgent: a.userAgent,
@@ -146,16 +168,15 @@ export const acceptInvite = action({
 });
 
 export const createInvite = action({
-  args: { token: v.string(), email: v.string(), role: vRole },
+  args: { token: v.string(), username: v.string(), role: vRole },
   handler: async (ctx, a): Promise<{ inviteToken: string }> => {
     const actor = await ctx.runQuery(internal.authInternal.viewer, { token: a.token });
     if (!actor || !can(actor.role, "users")) {
       throw new ConvexError({ code: "FORBIDDEN", message: "Your role can't invite people." });
     }
-    const email = normalizeEmail(a.email);
-    if (!isEmail(email)) throw new ConvexError({ code: "INVALID", message: "Enter a valid email.", field: "email" });
+    const username = checkUsername(a.username);
     const { token, tokenHash } = newToken();
-    await ctx.runMutation(internal.authInternal.insertInvite, { actorId: actor._id, email, role: a.role, tokenHash });
+    await ctx.runMutation(internal.authInternal.insertInvite, { actorId: actor._id, username, name: a.username.trim(), role: a.role, tokenHash });
     return { inviteToken: token };
   },
 });
@@ -174,7 +195,9 @@ export const createResetLink = action({
 export const completeReset = action({
   args: { resetToken: v.string(), password: v.string(), userAgent: v.optional(v.string()) },
   handler: async (ctx, a): Promise<{ token: string }> => {
-    checkPassword(a.password);
+    const info = await ctx.runQuery(api.users.resetInfo, { resetToken: a.resetToken });
+    if (!info.valid) throw new ConvexError({ code: "INVALID_LINK", message: "This reset link has expired or was already used." });
+    checkPassword(a.password, info.username);
     const { token, tokenHash } = newToken();
     await ctx.runMutation(internal.authInternal.consumeReset, {
       resetTokenHash: hashOf(a.resetToken),
@@ -194,7 +217,7 @@ export const changePassword = action({
     if (!(await verifyPassword(a.currentPassword, user.passwordHash))) {
       throw new ConvexError({ code: "BAD_CREDENTIALS", message: "Your current password is wrong.", field: "currentPassword" });
     }
-    checkPassword(a.newPassword, user.email);
+    checkPassword(a.newPassword, user.username);
     await ctx.runMutation(internal.authInternal.setPassword, {
       userId: user._id,
       passwordHash: await hashPassword(a.newPassword),

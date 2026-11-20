@@ -20,7 +20,9 @@ const ordered = { order: v.number() };
 export default defineSchema({
   /* ---------------------------- Access ---------------------------- */
   users: defineTable({
-    email: v.string(),
+    /** What they sign in with: trimmed and lower-case (see normalizeUsername). */
+    username: v.string(),
+    /** How they're shown in the dashboard; starts as the username as typed. */
     name: v.string(),
     role: vRole,
     active: v.boolean(),
@@ -28,7 +30,7 @@ export default defineSchema({
     lastLoginAt: v.optional(v.number()),
     lastSeenLeadsAt: v.number(),
     lastSeenApplicationsAt: v.number(),
-  }).index("by_email", ["email"]),
+  }).index("by_username", ["username"]),
 
   sessions: defineTable({
     userId: v.id("users"),
@@ -41,7 +43,9 @@ export default defineSchema({
     .index("by_expiry", ["expiresAt"]),
 
   invites: defineTable({
-    email: v.string(),
+    /** The username the invited person will sign in with, chosen by whoever invites them. */
+    username: v.string(),
+    name: v.string(),
     role: vRole,
     tokenHash: v.string(),
     invitedBy: v.id("users"),
@@ -49,7 +53,7 @@ export default defineSchema({
     acceptedAt: v.optional(v.number()),
   })
     .index("by_token", ["tokenHash"])
-    .index("by_email", ["email"]),
+    .index("by_username", ["username"]),
 
   passwordResets: defineTable({
     userId: v.id("users"),

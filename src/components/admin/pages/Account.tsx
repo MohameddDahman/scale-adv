@@ -2,6 +2,7 @@
 
 import { api } from "@convex/_generated/api";
 import { useState } from "react";
+import { PasswordInput } from "../AuthScreens";
 import { ROLE_HELP, ROLE_LABEL } from "../nav";
 import { useTheme } from "../Shell";
 import { errorMessage, useAdminAction, useAdminMutation, useSession } from "../session";
@@ -15,12 +16,12 @@ export function AccountPage() {
   const { toast } = useFeedback();
   const { theme, toggle } = useTheme();
   const [name, setName] = useState(me?.name ?? "");
-  const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
+  const [pw, setPw] = useState({ current: "", next: "" });
   const [busy, setBusy] = useState<string | null>(null);
 
   return (
     <div className="max-w-3xl">
-      <PageHeader title="Your account" description={`${me?.email} · ${ROLE_LABEL[me?.role ?? ""] ?? ""}`} />
+      <PageHeader title="Your account" description={`Username: ${me?.username ?? ""} · ${ROLE_LABEL[me?.role ?? ""] ?? ""}`} />
       <div className="space-y-6">
         <Panel title="Profile">
           <form
@@ -50,16 +51,15 @@ export function AccountPage() {
           </p>
         </Panel>
 
-        <Panel title="Password" description="At least 10 characters. Changing it signs you out on other devices.">
+        <Panel title="Password" description="At least 4 characters. Changing it signs you out on other devices.">
           <form
-            className="grid gap-4 sm:grid-cols-3"
+            className="grid gap-4 sm:grid-cols-2"
             onSubmit={async (e) => {
               e.preventDefault();
-              if (pw.next !== pw.confirm) return toast("The new passwords don't match.", "error");
               setBusy("pw");
               try {
                 await changePassword({ currentPassword: pw.current, newPassword: pw.next });
-                setPw({ current: "", next: "", confirm: "" });
+                setPw({ current: "", next: "" });
                 toast("Password changed");
               } catch (err) {
                 toast(errorMessage(err), "error");
@@ -68,17 +68,14 @@ export function AccountPage() {
               }
             }}
           >
-            <input type="email" autoComplete="username" value={me?.email ?? ""} readOnly hidden />
+            <input type="text" autoComplete="username" value={me?.username ?? ""} readOnly hidden />
             <Field label="Current password" htmlFor="pw-current">
-              <Input id="pw-current" type="password" autoComplete="current-password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} />
+              <PasswordInput id="pw-current" autoComplete="current-password" value={pw.current} onChange={(v) => setPw({ ...pw, current: v })} />
             </Field>
             <Field label="New password" htmlFor="pw-next">
-              <Input id="pw-next" type="password" autoComplete="new-password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} />
+              <PasswordInput id="pw-next" autoComplete="new-password" value={pw.next} onChange={(v) => setPw({ ...pw, next: v })} defaultVisible />
             </Field>
-            <Field label="Confirm new password" htmlFor="pw-confirm">
-              <Input id="pw-confirm" type="password" autoComplete="new-password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} />
-            </Field>
-            <div className="sm:col-span-3">
+            <div className="sm:col-span-2">
               <Button type="submit" variant="primary" loading={busy === "pw"} disabled={!pw.current || !pw.next}>
                 Change password
               </Button>
