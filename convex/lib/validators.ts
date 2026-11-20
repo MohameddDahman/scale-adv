@@ -62,6 +62,8 @@ export const REEL_FORMATS = [
   "ad",
   "motion",
 ] as const;
+/** The Work page's two groups, matching the "Content creation" and "Media production" services. */
+export const REEL_CATEGORIES = ["content", "production"] as const;
 
 export const vQuestion = v.object({
   id: v.string(),
@@ -113,6 +115,8 @@ export const reelFields = {
   title: vText,
   clientId: v.optional(v.id("clients")),
   format: v.string(),
+  /** "content" or "production" (REEL_CATEGORIES); groups the Work page. */
+  category: v.optional(v.string()),
   video: v.optional(v.id("_storage")),
   videoUrl: v.optional(v.string()),
   /** Set when the video was uploaded to Cloudinary from the dashboard; used to delete it later. */

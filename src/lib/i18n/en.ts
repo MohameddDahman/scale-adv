@@ -132,6 +132,10 @@ const en = {
       ad: "Ad",
       motion: "Motion",
     } as Record<string, string>,
+    categories: {
+      content: "Content",
+      production: "Production",
+    } as Record<string, string>,
   },
   results: {
     tab: "Results",

@@ -230,32 +230,77 @@ export const DEFAULT_CLIENTS: ClientSeed[] = [
 ];
 
 type ReelSeed = ObjectType<typeof reelFields> & { clientSlug?: string };
+
+/** A reel whose video is stored on the client's Cloudinary account (shrunk to 720p before upload). */
+const cloudinaryReel = (
+  slug: string,
+  version: number,
+  bytes: number,
+  duration: number,
+  reel: Omit<ReelSeed, "videoUrl" | "videoPublicId" | "videoBytes" | "videoDuration" | "posterPath" | "featured" | "published">,
+): ReelSeed => ({
+  ...reel,
+  videoUrl: `https://res.cloudinary.com/du4z7z8s/video/upload/v${version}/scale-adv/reels/${slug}.mp4`,
+  videoPublicId: `scale-adv/reels/${slug}`,
+  videoBytes: bytes,
+  videoDuration: duration,
+  posterPath: `/work/${slug}.webp`,
+  featured: true,
+  published: true,
+});
+
+/**
+ * The client's real work, from the Content and Production folders they sent.
+ * Titles describe what's on screen; the client can rename them in the dashboard.
+ * The Spiketo videos are credited to Spiketo Luxury (designer labels).
+ */
 export const DEFAULT_REELS: ReelSeed[] = [
-  {
-    title: t("POV: the manager's on leave", "POV: المدير واخد أجازة"),
-    format: "pov",
-    posterPath: "/work/pov-manager.webp",
-    socialUrl: "https://www.instagram.com/scale_adv/",
-    featured: true,
-    published: true,
-  },
-  {
-    title: t("POV: the colleague you come in for", "POV: اللي بروح الشغل عشانه"),
-    format: "pov",
-    posterPath: "/work/pov-office.webp",
-    socialUrl: "https://www.instagram.com/scale_adv/",
-    featured: true,
-    published: true,
-  },
-  {
-    title: t("Skit: the bucket", "سكتش: الجردل"),
+  cloudinaryReel("mohsen-cafe-to-store", 1795179326, 9288315, 70.3, {
+    title: t("Mohsen: from the café to the store", "محسن: من القهوة للمحل"),
+    format: "storytelling",
+    category: "production",
+    clientSlug: "mohsen",
+  }),
+  cloudinaryReel("spiketo-dolce-gabbana", 1795179295, 3654062, 20.7, {
+    title: t("Dolce & Gabbana trousers, up close", "بنطلون دولتشي آند جابانا من قريب"),
+    format: "product",
+    category: "content",
+    clientSlug: "spiketo-luxury",
+  }),
+  cloudinaryReel("mohsen-where-next", 1795179338, 3044303, 28.8, {
+    title: t("Where will Mohsen open next?", "تفتكروا محسن هيفتح فين؟"),
     format: "skit",
-    posterPath: "/work/skit-ladder.webp",
-    socialUrl: "https://www.instagram.com/scale_adv/",
-    featured: true,
-    published: true,
-  },
+    category: "production",
+    clientSlug: "mohsen",
+  }),
+  cloudinaryReel("spiketo-prada", 1795179302, 3179433, 21.7, {
+    title: t("Prada trousers, every detail", "بنطلون برادا بكل تفاصيله"),
+    format: "product",
+    category: "content",
+    clientSlug: "spiketo-luxury",
+  }),
+  cloudinaryReel("spiketo-store-tour", 1795179357, 9758186, 58.8, {
+    title: t("Inside Spiketo", "جولة جوه سبايكيتو"),
+    format: "product",
+    category: "production",
+    clientSlug: "spiketo-luxury",
+  }),
+  cloudinaryReel("mohsen-opening-night", 1795179332, 2923341, 28.3, {
+    title: t("Mohsen: opening night", "محسن: ليلة الافتتاح"),
+    format: "ad",
+    category: "production",
+    clientSlug: "mohsen",
+  }),
+  cloudinaryReel("spiketo-denim", 1795179307, 1885661, 11.7, {
+    title: t("Dark denim, up close", "جينز غامق من قريب"),
+    format: "product",
+    category: "content",
+    clientSlug: "spiketo-luxury",
+  }),
 ];
+
+/** Covers of the placeholder reels the site started with (stills from Instagram), hidden once real reels were added. */
+export const PLACEHOLDER_REEL_POSTERS = ["/work/pov-manager.webp", "/work/pov-office.webp", "/work/skit-ladder.webp"];
 
 type FaqSeed = ObjectType<typeof faqFields>;
 export const DEFAULT_FAQS: FaqSeed[] = [

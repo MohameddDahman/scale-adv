@@ -40,6 +40,11 @@ export const WORKPLACE_OPTIONS = [
   { value: "hybrid", label: "Hybrid" },
   { value: "remote", label: "Remote" },
 ];
+/** Reel types: the Work page's two tabs. */
+export const CATEGORY_OPTIONS = [
+  { value: "content", label: "Content" },
+  { value: "production", label: "Production" },
+];
 export const SERVICE_OPTIONS = [
   { value: "content", label: "Content creation" },
   { value: "production", label: "Media production" },
@@ -154,13 +159,15 @@ export const reelsConfig: ResourceConfig = {
   thumb: (d) => ({ storageId: d.poster, path: d.posterPath }),
   thumbAspect: "aspect-[9/16]",
   titleOf: (d) => d.title?.en || d.title?.ar || "",
-  subtitleOf: (d) => `${label(FORMAT_OPTIONS, d.format)}${d.video || d.videoUrl ? "" : " · no video yet"}`,
-  searchOf: (d) => `${d.title.en} ${d.title.ar} ${d.format}`,
+  subtitleOf: (d) =>
+    `${d.category ? `${label(CATEGORY_OPTIONS, d.category)} · ` : ""}${label(FORMAT_OPTIONS, d.format)}${d.video || d.videoUrl ? "" : " · no video yet"}`,
+  searchOf: (d) => `${d.title.en} ${d.title.ar} ${d.format} ${d.category ?? ""}`,
   previewHref: (d) => (d.published ? "/en/work" : null),
   empty: () => ({
     title: emptyText(),
     clientId: undefined,
     format: "skit",
+    category: undefined,
     video: undefined,
     videoUrl: undefined,
     videoPublicId: undefined,
@@ -178,6 +185,14 @@ export const reelsConfig: ResourceConfig = {
       title: "Reel",
       fields: [
         { kind: "i18n", name: "title", label: "Title", required: true },
+        {
+          kind: "select",
+          name: "category",
+          label: "Type",
+          options: CATEGORY_OPTIONS,
+          optional: true,
+          hint: "The Work page has a Content tab and a Production tab.",
+        },
         { kind: "select", name: "format", label: "Format", options: FORMAT_OPTIONS },
         { kind: "reference", name: "clientId", label: "Client", source: "clients" },
         { kind: "number", name: "views", label: "Views", optional: true, min: 0, hint: "Optional. Shown on the card, e.g. 120K views." },

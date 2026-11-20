@@ -71,6 +71,7 @@ export type PublicReel = {
   id: string;
   title: Text;
   format: string;
+  category: string | null;
   poster: string | null;
   video: string | null;
   embed: string | null;
@@ -90,6 +91,7 @@ export async function shapeReel(
     id: r._id,
     title: r.title,
     format: r.format,
+    category: r.category ?? null,
     poster: await url(r.poster, r.posterPath),
     video: await url(r.video, isDirectVideo(r.videoUrl) ? r.videoUrl : undefined),
     embed: youtubeEmbed(r.videoUrl),

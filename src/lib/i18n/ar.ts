@@ -134,6 +134,10 @@ const ar: Dictionary = {
       ad: "إعلان",
       motion: "موشن",
     },
+    categories: {
+      content: "محتوى",
+      production: "برودكشن",
+    },
   },
   results: {
     tab: "النتايج",

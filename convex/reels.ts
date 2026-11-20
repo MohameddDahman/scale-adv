@@ -1,8 +1,10 @@
-import { query } from "./_generated/server";
+import { v } from "convex/values";
+import { internalMutation, query } from "./_generated/server";
 import { makeCrud } from "./lib/crud";
+import { DEFAULT_REELS, PLACEHOLDER_REEL_POSTERS } from "./lib/defaults";
 import { sha256Hex } from "./lib/sha256";
 import { fail, normalizeUrl } from "./lib/util";
-import { REEL_FORMATS, reelFields } from "./lib/validators";
+import { REEL_CATEGORIES, REEL_FORMATS, reelFields } from "./lib/validators";
 
 export const { list, get, create, update, remove, reorder, setPublished, duplicate } = makeCrud({
   table: "reels",
@@ -13,6 +15,8 @@ export const { list, get, create, update, remove, reorder, setPublished, duplica
   validate: async (_ctx, d) => {
     if (!d.title.en.trim() && !d.title.ar.trim()) fail("Give the reel a title.", "title");
     if (!(REEL_FORMATS as readonly string[]).includes(d.format)) fail("Pick a format.", "format");
+    const category = d.category?.trim() || undefined;
+    if (category && !(REEL_CATEGORIES as readonly string[]).includes(category)) fail("Pick Content or Production.", "category");
     const videoUrl = normalizeUrl(d.videoUrl);
     const socialUrl = normalizeUrl(d.socialUrl);
     if (d.videoUrl?.trim() && !videoUrl) fail("Enter a valid video link.", "videoUrl");
@@ -22,6 +26,7 @@ export const { list, get, create, update, remove, reorder, setPublished, duplica
     const uploaded = !!d.videoPublicId && !!videoUrl?.includes(d.videoPublicId);
     return {
       ...d,
+      category,
       videoUrl,
       socialUrl,
       videoPublicId: uploaded ? d.videoPublicId : undefined,
@@ -40,6 +45,7 @@ export const { list, get, create, update, remove, reorder, setPublished, duplica
     title: { en: `${doc.title.en} (copy)`, ar: doc.title.ar },
     clientId: doc.clientId,
     format: doc.format,
+    category: doc.category,
     video: doc.video,
     videoUrl: doc.videoUrl,
     videoPublicId: doc.videoPublicId,
@@ -52,6 +58,37 @@ export const { list, get, create, update, remove, reorder, setPublished, duplica
     featured: doc.featured,
     published: false,
   }),
+});
+
+/**
+ * Adds the starter reels (DEFAULT_REELS) that this database doesn't have yet,
+ * matched by their Cloudinary video, after the existing reels, and hides the
+ * site's original placeholder reels (or the covers given). For the terminal:
+ *   npx convex run reels:importDefaultReels
+ */
+export const importDefaultReels = internalMutation({
+  args: { hidePosterPaths: v.optional(v.array(v.string())) },
+  handler: async (ctx, a) => {
+    const existing = await ctx.db.query("reels").collect();
+    const have = new Set(existing.map((r) => r.videoPublicId).filter((id): id is string => !!id));
+    const clients = new Map((await ctx.db.query("clients").collect()).map((c) => [c.slug, c._id]));
+    let order = existing.reduce((max, r) => Math.max(max, r.order), -1) + 1;
+    let added = 0;
+    for (const { clientSlug, ...reel } of DEFAULT_REELS) {
+      if (reel.videoPublicId && have.has(reel.videoPublicId)) continue;
+      await ctx.db.insert("reels", { ...reel, clientId: clientSlug ? clients.get(clientSlug) : undefined, order: order++ });
+      added++;
+    }
+    const hide = new Set(a.hidePosterPaths ?? PLACEHOLDER_REEL_POSTERS);
+    let hidden = 0;
+    for (const r of existing) {
+      if (r.published && r.posterPath && hide.has(r.posterPath)) {
+        await ctx.db.patch("reels", r._id, { published: false });
+        hidden++;
+      }
+    }
+    return { added, hidden };
+  },
 });
 
 /** The public ID inside a Cloudinary video link: …/video/upload/<settings>/v123/<public id>.mp4 */

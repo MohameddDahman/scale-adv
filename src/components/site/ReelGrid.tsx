@@ -26,31 +26,35 @@ export function ReelGrid({
   filters?: boolean;
   columns?: "default" | "wide";
 }) {
-  const [format, setFormat] = useState<string>("all");
+  const [filter, setFilter] = useState<string>("all");
   const [open, setOpen] = useState<number | null>(null);
 
-  const formats = useMemo(() => [...new Set(reels.map((r) => r.format))], [reels]);
-  const visible = useMemo(() => (format === "all" ? reels : reels.filter((r) => r.format === format)), [reels, format]);
+  // Content / Production when reels have a type; otherwise by format (POV, Skit…).
+  const byCategory = useMemo(() => reels.some((r) => r.category), [reels]);
+  const keyOf = useCallback((r: PublicReel) => (byCategory ? (r.category ?? "") : r.format), [byCategory]);
+  const keys = useMemo(() => [...new Set(reels.map(keyOf))].filter(Boolean), [reels, keyOf]);
+  // Falls back to the key itself if a cached page still has older labels.
+  const nameOf = (k: string) =>
+    (byCategory ? labels.categories?.[k] : labels.formats?.[k]) ?? k.charAt(0).toUpperCase() + k.slice(1);
+  const visible = useMemo(() => (filter === "all" ? reels : reels.filter((r) => keyOf(r) === filter)), [reels, filter, keyOf]);
 
   return (
     <>
-      {filters && formats.length > 1 ? (
+      {filters && keys.length > 1 ? (
         <div role="group" aria-label="Filter" className="mb-8 flex flex-wrap gap-2">
-          {["all", ...formats].map((f) => (
+          {["all", ...keys].map((f) => (
             <button
               key={f}
               type="button"
-              aria-pressed={format === f}
-              onClick={() => setFormat(f)}
+              aria-pressed={filter === f}
+              onClick={() => setFilter(f)}
               className={cn(
                 "min-h-11 border px-4 text-[0.92rem] font-medium transition-colors",
-                format === f ? "border-chalk bg-chalk text-ink-950" : "border-chalk/20 text-chalk/80 hover:border-chalk/50",
+                filter === f ? "border-chalk bg-chalk text-ink-950" : "border-chalk/20 text-chalk/80 hover:border-chalk/50",
               )}
             >
-              {f === "all" ? labels.filterAll : (labels.formats[f] ?? f)}
-              {f !== "all" ? (
-                <span className="ms-2 font-mono text-[0.75rem] opacity-60">{reels.filter((r) => r.format === f).length}</span>
-              ) : null}
+              {f === "all" ? labels.filterAll : nameOf(f)}
+              {f !== "all" ? <span className="ms-2 font-mono text-[0.75rem] opacity-60">{reels.filter((r) => keyOf(r) === f).length}</span> : null}
             </button>
           ))}
         </div>
