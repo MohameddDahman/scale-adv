@@ -1,4 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "if [ \"$VERCEL_ENV\" = \"production\" ]; then npx convex deploy --cmd 'npm run build' --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL; else npm run build; fi"
+  "framework": "nextjs",
+  "buildCommand": "if [ \"$VERCEL_ENV\" = \"production\" ] && [ -n \"$CONVEX_DEPLOY_KEY\" ]; then npx convex deploy --cmd 'npm run build' --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL; else npm run build; fi",
+  "crons": [{ "path": "/api/cloudinary/cleanup", "schedule": "0 2 * * *" }]
 }

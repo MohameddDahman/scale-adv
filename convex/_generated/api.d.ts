@@ -14,7 +14,6 @@ import type * as authInternal from "../authInternal.js";
 import type * as authNode from "../authNode.js";
 import type * as caseStudies from "../caseStudies.js";
 import type * as clients from "../clients.js";
-import type * as cloudinary from "../cloudinary.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
 import type * as faqs from "../faqs.js";
@@ -58,7 +57,6 @@ declare const fullApi: ApiFromModules<{
   authNode: typeof authNode;
   caseStudies: typeof caseStudies;
   clients: typeof clients;
-  cloudinary: typeof cloudinary;
   crons: typeof crons;
   dashboard: typeof dashboard;
   faqs: typeof faqs;

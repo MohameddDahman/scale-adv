@@ -1,16 +1,16 @@
 "use client";
 
-import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { CloudArrowUp, Trash, VideoCamera, X } from "@phosphor-icons/react";
 import { ConvexError } from "convex/values";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { SignedUpload } from "@/lib/cloudinary-server";
 import { formatBytes, UploadProgress, useUploader } from "./media";
+import { errorMessage, useAdminFetch } from "./session";
+import { Button, Input, useFeedback } from "./ui";
 
 /** The encoder (Mediabunny) is only downloaded when someone actually uploads a video. */
 const loadCompressor = () => import("@/lib/video-compress");
-import { errorMessage, useAdminAction } from "./session";
-import { Button, Input, useFeedback } from "./ui";
 
 const invalid = (message: string) => new ConvexError({ code: "INVALID_FILE", message });
 
@@ -45,12 +45,12 @@ function postToCloudinary(url: string, fields: Record<string, string>, file: Fil
 }
 
 /**
- * Shrink in the browser, then upload straight to Cloudinary with a
- * signature from Convex. Falls back to Cloudinary compressing on upload when
- * this browser can't encode video.
+ * Shrink in the browser, then upload straight to Cloudinary with a signature
+ * from the website's server (/api/cloudinary/sign). Falls back to Cloudinary
+ * compressing on upload when this browser can't encode video.
  */
 export function useVideoUploader() {
-  const sign = useAdminAction(api.cloudinary.signUpload);
+  const call = useAdminFetch();
   const [stage, setStage] = useState<Stage | null>(null);
   const controller = useRef<AbortController | null>(null);
 
@@ -74,7 +74,7 @@ export function useVideoUploader() {
         }
         const toSend = compressed ?? file;
         setStage({ step: "upload", progress: 0 });
-        const signed = await sign({ bytes: toSend.size, serverCompression });
+        const signed = await call<SignedUpload>("/api/cloudinary/sign", { method: "POST", body: { bytes: toSend.size, serverCompression } });
         const result = await postToCloudinary(signed.uploadUrl, signed.fields, toSend, (p) => setStage({ step: "upload", progress: p }), ctrl.signal);
         return { result, originalBytes: file.size, compressed };
       } catch (error) {
@@ -84,7 +84,7 @@ export function useVideoUploader() {
         controller.current = null;
       }
     },
-    [sign],
+    [call],
   );
 
   return { upload, stage, setStage, cancel: () => controller.current?.abort() };
@@ -111,7 +111,7 @@ export function ReelVideoField({
   onChange: (next: ReelVideo) => void;
   onCover: (storageId: Id<"_storage">) => void;
 }) {
-  const checkStatus = useAdminAction(api.cloudinary.status);
+  const call = useAdminFetch();
   const { upload, stage, setStage, cancel } = useVideoUploader();
   const images = useUploader();
   const { toast } = useFeedback();
@@ -121,13 +121,13 @@ export function ReelVideoField({
 
   useEffect(() => {
     let live = true;
-    checkStatus({})
+    call<{ configured: boolean }>("/api/cloudinary/status")
       .then((r) => live && setConfigured(r.configured))
       .catch(() => live && setConfigured(false));
     return () => {
       live = false;
     };
-  }, [checkStatus]);
+  }, [call]);
 
   async function onFile(file: File) {
     try {
@@ -176,7 +176,8 @@ export function ReelVideoField({
         <div className="min-w-56 flex-1 space-y-2">
           {configured === false ? (
             <p className="rounded-[5px] border border-a-line bg-a-raised px-3 py-2.5 text-[0.8rem] text-a-muted">
-              Video uploads aren&apos;t connected yet: the Cloudinary keys need to be added (see the README). Until then, paste a link below.
+              Video uploads aren&apos;t connected yet: the Cloudinary keys need to be added in Vercel (see the README). Until then, paste a link
+              below.
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">

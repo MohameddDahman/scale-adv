@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Wordmark } from "@/components/site/Wordmark";
 import { ROLE_LABEL } from "./nav";
-import { errorField, errorMessage, useSession } from "./session";
+import { errorField, errorMessage, refreshSite, useSession } from "./session";
 import { Button, Field, Input } from "./ui";
 
 function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: ReactNode; children: ReactNode }) {
@@ -182,6 +182,8 @@ export function SetupScreen() {
         userAgent: agent(),
       });
       setToken(token);
+      // The live site was cached before any content existed; show the starter content now.
+      refreshSite(token);
       router.replace("/admin");
     } catch (err) {
       const field = errorField(err);

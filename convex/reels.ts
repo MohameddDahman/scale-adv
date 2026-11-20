@@ -1,14 +1,8 @@
-import { internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
-import { internalQuery, type MutationCtx } from "./_generated/server";
+import { query } from "./_generated/server";
 import { makeCrud } from "./lib/crud";
+import { sha256Hex } from "./lib/sha256";
 import { fail, normalizeUrl } from "./lib/util";
 import { REEL_FORMATS, reelFields } from "./lib/validators";
-
-/** Deletes a reel's old Cloudinary video once nothing uses it (checked again inside the action). */
-async function releaseVideo(ctx: MutationCtx, publicId: string | undefined) {
-  if (publicId) await ctx.scheduler.runAfter(0, internal.cloudinary.destroyIfUnused, { publicId });
-}
 
 export const { list, get, create, update, remove, reorder, setPublished, duplicate } = makeCrud({
   table: "reels",
@@ -35,17 +29,12 @@ export const { list, get, create, update, remove, reorder, setPublished, duplica
       videoDuration: uploaded ? d.videoDuration : undefined,
     };
   },
-  afterWrite: async (ctx, _id, data, previous: Doc<"reels"> | null) => {
-    if (previous?.videoPublicId && previous.videoPublicId !== data.videoPublicId) await releaseVideo(ctx, previous.videoPublicId);
-  },
   onDelete: async (ctx, doc) => {
     for (const c of await ctx.db.query("caseStudies").collect()) {
       if (c.reelIds.includes(doc._id)) {
         await ctx.db.patch("caseStudies", c._id, { reelIds: c.reelIds.filter((id) => id !== doc._id) });
       }
     }
-    // Runs after the reel is gone, so the "still used?" check won't count it.
-    await releaseVideo(ctx, doc.videoPublicId);
   },
   duplicate: (doc) => ({
     title: { en: `${doc.title.en} (copy)`, ar: doc.title.ar },
@@ -65,9 +54,30 @@ export const { list, get, create, update, remove, reorder, setPublished, duplica
   }),
 });
 
-/** Cloudinary videos still shown on a reel; anything else of ours can be deleted. */
-export const videoPublicIds = internalQuery({
+/** The public ID inside a Cloudinary video link: …/video/upload/<settings>/v123/<public id>.mp4 */
+function cloudinaryVideoId(url: string | undefined) {
+  const m = url ? /^https:\/\/res\.cloudinary\.com\/[^/]+\/video\/upload\/([^?#]+)/i.exec(url) : null;
+  if (!m) return null;
+  const parts = m[1].split("/");
+  while (parts.length > 1 && (/^v\d+$/.test(parts[0]) || /^[a-z]{1,3}_/.test(parts[0]))) parts.shift();
+  return parts.join("/").replace(/\.[a-z0-9]{2,4}$/i, "") || null;
+}
+
+/**
+ * Which Cloudinary videos the reels use, as SHA-256 hashes of their public
+ * IDs. The website's daily clean-up (src/app/api/cloudinary/cleanup) deletes
+ * dashboard uploads that aren't listed. Hashed, so the videos of unpublished
+ * reels stay private.
+ */
+export const videoKeys = query({
   args: {},
-  handler: async (ctx) =>
-    (await ctx.db.query("reels").collect()).map((r) => r.videoPublicId).filter((id): id is string => !!id),
+  handler: async (ctx) => {
+    const ids = new Set<string>();
+    for (const r of await ctx.db.query("reels").collect()) {
+      if (r.videoPublicId) ids.add(r.videoPublicId);
+      const linked = cloudinaryVideoId(r.videoUrl);
+      if (linked) ids.add(linked);
+    }
+    return [...ids].map((id) => sha256Hex(id));
+  },
 });

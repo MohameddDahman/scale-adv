@@ -198,6 +198,35 @@ export function useAdminAction<F extends FunctionReference<"action">>(fn: F) {
   );
 }
 
+/**
+ * Calls one of the website's own dashboard routes (for example
+ * /api/cloudinary/sign) with the session token. A refusal is thrown as a
+ * ConvexError, so errorMessage() shows its message like any other.
+ */
+export function useAdminFetch() {
+  const { token } = useSession();
+  return useCallback(
+    async <T,>(path: string, init: { method?: "GET" | "POST"; body?: unknown } = {}): Promise<T> => {
+      if (!token) throw new ConvexError({ code: "UNAUTHENTICATED", message: "Sign in again." });
+      const res = await fetch(path, {
+        method: init.method ?? "GET",
+        headers: { Authorization: `Bearer ${token}`, ...(init.body === undefined ? {} : { "Content-Type": "application/json" }) },
+        body: init.body === undefined ? undefined : JSON.stringify(init.body),
+        cache: "no-store",
+      });
+      const data = (await res.json().catch(() => null)) as (T & { code?: string; message?: string }) | null;
+      if (!res.ok || data === null) {
+        throw new ConvexError({
+          code: data?.code ?? "FAILED",
+          message: data?.message ?? `The website's server answered with ${res.status}. Try again.`,
+        });
+      }
+      return data;
+    },
+    [token],
+  );
+}
+
 export function errorCode(error: unknown): string | undefined {
   if (error instanceof ConvexError && error.data && typeof error.data === "object") {
     const code = (error.data as Record<string, unknown>).code;

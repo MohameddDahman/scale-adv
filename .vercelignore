@@ -1,0 +1,10 @@
+# Kept out of `vercel deploy` uploads (the Vercel CLI doesn't read .gitignore).
+.convex
+.claude
+.next
+node_modules
+.env*
+!.env.example
+*.local.md
+*.tsbuildinfo
+next-env.d.ts

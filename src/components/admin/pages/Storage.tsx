@@ -1,13 +1,13 @@
 "use client";
 
 import { api } from "@convex/_generated/api";
-import type { FunctionReturnType } from "convex/server";
 import { FilmStrip } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { CloudinaryUsage } from "@/lib/cloudinary-server";
 import { APP_STAGE, STAGE_ORDER, type AppStageKey } from "../format";
 import { formatBytes, Thumb } from "../media";
-import { errorMessage, useAdminAction, useAdminMutation, useAdminQuery, useSession } from "../session";
+import { errorMessage, useAdminFetch, useAdminMutation, useAdminQuery, useSession } from "../session";
 import { StorageMeter, useStorageUsage } from "../storage";
 import { Button, Field, PageHeader, Panel, Select, Skeleton, useFeedback } from "../ui";
 
@@ -56,7 +56,7 @@ export function StoragePage() {
             </li>
             <li>
               <span className="font-semibold text-a-text">Videos never touch Convex.</span> They&apos;re shrunk to 720p in the browser (a 30-second
-              reel is about 5 MB) and go straight to Cloudinary. Deleting or replacing a reel deletes its video there too.
+              reel is about 5 MB) and go straight to Cloudinary. Videos that no reel uses any more are deleted there every night.
             </li>
             <li>
               <span className="font-semibold text-a-text">CVs are capped at 5 MB.</span> Photos of CVs are shrunk first.
@@ -76,36 +76,67 @@ export function StoragePage() {
   );
 }
 
-type CloudUsage = FunctionReturnType<typeof api.cloudinary.usage>;
-
 /** Cloudinary (videos): the free plan's 25 credits per 30 days, and what's using them. */
 function VideoHosting() {
-  const load = useAdminAction(api.cloudinary.usage);
-  const [data, setData] = useState<CloudUsage | null>(null);
+  const call = useAdminFetch();
+  const { confirm, toast } = useFeedback();
+  const [data, setData] = useState<CloudinaryUsage | null>(null);
   const [failed, setFailed] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let live = true;
-    load({})
+    call<CloudinaryUsage>("/api/cloudinary/usage")
       .then((r) => live && setData(r))
       .catch(() => live && setFailed(true));
     return () => {
       live = false;
     };
-  }, [load]);
+  }, [call]);
+
+  async function cleanUp() {
+    const ok = await confirm({
+      title: "Delete videos no reel uses?",
+      body: "Deletes uploads that were never saved to a reel, and videos that were replaced or whose reel was deleted, once they're 6 hours old. This also runs on its own every night. It can't be undone.",
+      confirmLabel: "Delete unused videos",
+      tone: "danger",
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      const r = await call<{ removed: number }>("/api/cloudinary/cleanup", { method: "POST" });
+      toast(r.removed ? `Deleted ${r.removed} unused video${r.removed === 1 ? "" : "s"}` : "No unused videos to delete");
+    } catch (e) {
+      toast(errorMessage(e), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const used = data && data.configured && !("error" in data) ? data : null;
   const share = used?.creditsUsed != null && used.creditsLimit ? used.creditsUsed / used.creditsLimit : null;
   const level = share === null ? null : share >= 0.9 ? "danger" : share >= 0.7 ? "warn" : null;
 
   return (
-    <Panel title="Video hosting (Cloudinary)" description="Reels are shrunk to 720p before upload and stored on Cloudinary's free plan: 25 credits every 30 days, where 1 credit is about 1 GB stored or 1 GB watched.">
+    <Panel
+      title="Video hosting (Cloudinary)"
+      description="Reels are shrunk to 720p before upload and stored on Cloudinary's free plan: 25 credits every 30 days, where 1 credit is about 1 GB stored or 1 GB watched."
+      actions={
+        used ? (
+          <Button size="sm" variant="ghost" loading={busy} onClick={cleanUp}>
+            Delete unused videos
+          </Button>
+        ) : null
+      }
+    >
       {failed ? (
         <p className="text-[0.84rem] text-a-muted">Couldn&apos;t reach Cloudinary right now. Try again later.</p>
       ) : data === null ? (
         <Skeleton className="h-16" />
       ) : !data.configured ? (
-        <p className="text-[0.84rem] text-a-muted">Not connected yet. Once the Cloudinary keys are added (see the README), usage shows here and reels can be uploaded.</p>
+        <p className="text-[0.84rem] text-a-muted">
+          Not connected yet. Once the Cloudinary keys are added in Vercel (see the README), usage shows here and reels can be uploaded.
+        </p>
       ) : "error" in data ? (
         <p className="text-[0.84rem] text-a-danger">{data.error}</p>
       ) : (

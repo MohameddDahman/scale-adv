@@ -55,7 +55,7 @@ Everything below is editable in the dashboard; nothing is hard-coded in pages.
 | FAQs, careers perks and hiring steps, numbers on the Services page | FAQs · Site settings → Careers / Numbers | **Samples** written for the brand. Check every claim. |
 | Phone, WhatsApp, email, address, social links | Site settings → Contact / Social | Only Instagram is filled in. Empty fields stay hidden on the site. |
 | Process steps, reel formats, "Why SCALE" principles, the Agency page | `src/lib/i18n/en.ts` and `ar.ts` (`servicesPage.steps`, `formats`, `why`, `agencyPage`) | Written for the brand from what SCALE offers. Check they match how the team really works. The numbers band uses Site settings → Numbers, and the brand wall uses Clients. |
-| Reels | Reels | 3 placeholders using stills from your Instagram grid. Add each real reel as a link (Cloudinary, YouTube or Instagram) and upload its cover. Video files aren't stored in Convex (see below). |
+| Reels | Reels | 3 placeholders using stills from your Instagram grid. Upload each real reel (it's shrunk and stored on Cloudinary, never in Convex) or paste a YouTube or Instagram link. |
 | Case studies | Case studies | One **unpublished example** shows the format. The Results section appears once you publish a real one. |
 | Testimonials, team photos | Testimonials · Team on site | Empty — the sections appear when you add some. |
 | Logo | `src/components/site/Wordmark.tsx` | The wordmark is typeset from the brand's style (heavy wide italic + orange ADV tab). Swap in the official SVG if you have it. |
@@ -84,47 +84,74 @@ Reels are stored on Cloudinary, separate from Convex. The free plan gives 25 cre
 
 - **Shrunk before upload.** The dashboard re-encodes every video in the browser: H.264 MP4, at most 720×1280 (or 1280×720), about 1.3 Mbps video and 96 kbps AAC audio, at most 30 fps. A 30-second phone export of 60–200 MB becomes about 5 MB. If the video hardware overshoots on very busy footage, a second pass caps the size. A file that's already small is uploaded as it is.
 - **No processing on Cloudinary.** Videos are delivered exactly as stored, so they use no transformation credits. If a browser can't encode video, Cloudinary shrinks the file on upload instead (720p, its leanest automatic quality), for files up to 40 MB.
-- **Signed uploads.** The Cloudinary secret stays in Convex. Only signed-in dashboard users can upload, and only into the `scale-adv/reels` folder.
-- **Nothing left behind.** Replacing or removing a reel's video, or deleting the reel, deletes the file on Cloudinary. A daily job deletes uploads that never got saved to a reel.
+- **Signed uploads.** The Cloudinary keys are environment variables of the website (on Vercel), and the website's server signs each upload (`src/app/api/cloudinary/`). The secret never reaches the browser. Only signed-in dashboard users can upload, and only into the `scale-adv/reels` folder.
+- **Nothing left behind.** Every night, Vercel Cron (`vercel.json`) runs a clean-up that deletes uploads no reel uses: videos that were replaced, videos of deleted reels, and uploads that were never saved. **Storage → Delete unused videos** does the same straight away.
 - **No autoplay previews.** Videos load only when a visitor opens a reel, and the reel cards show the cover image instead.
 - **Covers.** When a reel has no cover, a frame from the video becomes one. It's a small WebP image stored with the other images (Convex), not on Cloudinary.
 
 The Storage page shows the Cloudinary credits used, storage and views for the last 30 days.
 
-**Connect it (once per deployment).** In the Cloudinary console, open Settings → API Keys and copy the **API environment variable** (`CLOUDINARY_URL=cloudinary://…`). Then, in this folder:
+**Connect it (once).** In the Cloudinary console, open Settings → API Keys. You need the cloud name (shown at the top), the API key and the API secret. In this folder, run each command, paste the matching value when asked, and press Enter:
 
 ```bash
-npx convex env set CLOUDINARY_URL "cloudinary://<api_key>:<api_secret>@<cloud_name>"
+npx vercel env add CLOUDINARY_CLOUD_NAME production
 ```
 
 ```bash
-npx convex env set CLOUDINARY_URL "cloudinary://<api_key>:<api_secret>@<cloud_name>" --prod
+npx vercel env add CLOUDINARY_API_KEY production
 ```
 
-The first command connects the development database and the second connects the live one. Keep the secret out of git and chat. The upload button in the reel editor appears as soon as the key is set.
+```bash
+npx vercel env add CLOUDINARY_API_SECRET production
+```
 
-## Deploying (Vercel recommended)
+Then deploy again so the live site picks them up:
 
-1. **Deploy the backend**
+```bash
+npx vercel deploy --prod
+```
+
+The upload button in the reel editor appears once the keys are in. To upload videos while running the site on your computer, also add the three values to `.env.local` as `CLOUDINARY_CLOUD_NAME=…`, `CLOUDINARY_API_KEY=…` and `CLOUDINARY_API_SECRET=…` (git ignores that file). Keep the secret out of git and chat.
+
+## Deploying (Vercel)
+
+The site is the Vercel project **scale-adv**, live at **https://scale-adv-xi.vercel.app**. This folder is linked to it (the `.vercel` folder, which git ignores).
+
+1. **First visit.** Open https://scale-adv-xi.vercel.app/admin/setup, enter the setup key (it's in `production-setup-key.local.md`), create the owner account, and keep **Load starter content** ticked. The live site fills with the clients, services, roles and FAQs right after.
+
+2. **Deploy a new version.** If anything in `convex/` changed, update the live backend first:
 
    ```bash
    npx convex deploy
    ```
 
-   Then protect first-time setup on production:
+   Then upload and build the site:
 
    ```bash
-   npx convex env set SETUP_KEY "<a long random string>" --prod
+   npx vercel deploy --prod
    ```
 
-2. **Deploy the site.** Import the repo in Vercel. The build command is already in `vercel.json`: production builds upload the Convex backend first and then build the site, so both always match. Preview builds only build the site. Set these environment variables:
-   - `CONVEX_DEPLOY_KEY` (Production). Create it with `npx convex deployment token create vercel-production --prod`, or in the Convex dashboard under Settings → Deploy keys.
-   - `NEXT_PUBLIC_CONVEX_URL` (Preview): the development deployment's URL, so preview links show test data.
-   - `NEXT_PUBLIC_SITE_URL` (optional): your domain, e.g. `https://scale-adv.com`. Without it, the site uses Vercel's production domain for canonical links, the sitemap and job structured data.
-   - `NEXT_PUBLIC_CONVEX_SITE_URL` is optional. CV uploads use the deployment's `.convex.site` address, which is worked out from `NEXT_PUBLIC_CONVEX_URL` when this isn't set.
+   To have every production build update the backend by itself, add a deploy key: in the Convex dashboard, open the production deployment → Settings → Deploy keys, create one, then run `npx vercel env add CONVEX_DEPLOY_KEY production` and paste it. `vercel.json` then runs `npx convex deploy` before each production build.
 
-   Vercel's free Hobby plan is for personal, non-commercial use only. A client's website needs a Pro team.
-3. Open `https://your-domain/admin/setup`, enter the setup key, and create the owner account. Load starter content there or with `npx convex run seed:run --prod`.
+3. **Environment variables on Vercel** (Project → Settings → Environment Variables, or `npx vercel env ls`):
+
+   | Name | Environments | Status |
+   | --- | --- | --- |
+   | `NEXT_PUBLIC_CONVEX_URL` | Production: the live database. Preview and Development: the development database, so test links show test data. | Set |
+   | `CRON_SECRET` | Production | Set. Only Vercel Cron can start the nightly video clean-up. |
+   | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Production | Add them (see "Video hosting") |
+   | `CONVEX_DEPLOY_KEY` | Production | Optional (see step 2) |
+   | `NEXT_PUBLIC_SITE_URL` | Production | Optional. Set it to your own domain once it's connected, e.g. `https://scale-adv.com`. Until then, links, the sitemap and job listings use the vercel.app address. |
+
+   `NEXT_PUBLIC_CONVEX_SITE_URL` is optional too: CV uploads use the deployment's `.convex.site` address, worked out from `NEXT_PUBLIC_CONVEX_URL`. Change a variable, then deploy again for it to take effect.
+
+4. **Your own domain:** Vercel → the project → Settings → Domains. Then set `NEXT_PUBLIC_SITE_URL` and deploy again.
+
+5. **Deploy on every push (optional):** the project isn't connected to the GitHub repository, so pushing doesn't deploy. To change that, open Vercel → the project → Settings → Git and connect `scale-adv`.
+
+Vercel's free Hobby plan is for personal, non-commercial use only. A client's website needs a Pro team.
+
+`SETUP_KEY` is set on the live Convex deployment. A brand-new deployment needs one before going live: `npx convex env set SETUP_KEY "<a long random string>" --prod`.
 
 ## How it works
 
@@ -165,7 +192,7 @@ convex/                 backend (schema, queries, mutations, auth, crons)
   lib/shape.ts          turns database rows into what the website renders
 src/app/[locale]/       public website (en / ar)
 src/app/admin/          dashboard routes
-src/app/api/            revalidation + share images
+src/app/api/            revalidation, share images, Cloudinary video routes
 src/components/site/    website components (hero timeline, reel viewer, forms…)
 src/components/admin/   dashboard components (shell, editors, charts, kanban…)
 src/lib/i18n/           English and Arabic interface text
