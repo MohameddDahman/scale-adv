@@ -12,6 +12,7 @@ import {
   shapeClient,
   shapeFaq,
   shapeJob,
+  shapeApplyJob,
   shapeJobSummary,
   shapeReel,
   shapeService,
@@ -52,12 +53,16 @@ async function contentMaps(ctx: QueryCtx) {
 export const layout = query({
   args: {},
   handler: async (ctx) => {
-    const settings = await shapeSettings(await loadSettings(ctx), resolver(ctx));
-    const open = await ctx.db
-      .query("jobs")
-      .withIndex("by_status", (q) => q.eq("status", "open"))
-      .collect();
-    return { settings, openRoles: open.length };
+    const raw = await loadSettings(ctx);
+    const settings = await shapeSettings(raw, resolver(ctx));
+    const open = (
+      await ctx.db
+        .query("jobs")
+        .withIndex("by_status", (q) => q.eq("status", "open"))
+        .collect()
+    ).sort((a, b) => a.order - b.order);
+    // The "Apply for a job" pop-up on every page lists these.
+    return { settings, openRoles: open.length, openJobs: open.map(shapeApplyJob), acceptingOpen: raw.careers.accepting };
   },
 });
 

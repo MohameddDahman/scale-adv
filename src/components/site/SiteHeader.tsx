@@ -64,7 +64,7 @@ export function SiteHeader({ locale, nav, openRoles, announcement }: Props) {
         )}
       >
         <div className="container-site flex h-16 items-center justify-between gap-4 md:h-[4.75rem]">
-          <Link href={localeHref(locale, "/")} aria-label={nav.home} className="text-[1.6rem] md:text-[1.85rem]">
+          <Link href={localeHref(locale, "/")} aria-label={nav.home} className="text-[1.6rem] md:text-[1.85rem]" data-site-logo>
             <Wordmark />
           </Link>
 

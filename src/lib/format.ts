@@ -20,6 +20,29 @@ export function formatCompact(n: number, _locale?: Locale) {
   return String(Math.round(n));
 }
 
+/**
+ * A headline number as typed in Site settings → Numbers. Plain numbers are
+ * shortened and rounded down, so the claim never beats the real figure:
+ * 18000000 → "18M+", 180000 → "180K+", 2500 → "2.5K+", 12 → "12".
+ * Anything else ("12+", "3x", "98%") is shown as typed.
+ */
+export function statValue(raw: string): string {
+  const typed = raw.trim();
+  const western = typed.replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+  if (!/^\d[\d,.\s]*$/.test(western)) return typed;
+  const n = Number(western.replace(/[,\s]/g, ""));
+  if (!Number.isFinite(n)) return typed;
+  const down = (value: number, suffix: string) => {
+    const digits = value >= 100 ? 0 : 1;
+    const f = 10 ** digits;
+    return `${(Math.floor(value * f) / f).toFixed(digits).replace(/\.0$/, "")}${suffix}+`;
+  };
+  if (n >= 1_000_000_000) return down(n / 1_000_000_000, "B");
+  if (n >= 1_000_000) return down(n / 1_000_000, "M");
+  if (n >= 1_000) return down(n / 1_000, "K");
+  return String(Math.floor(n));
+}
+
 export function formatDate(ts: number, locale: Locale, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" }) {
   return new Intl.DateTimeFormat(tag(locale), opts).format(new Date(ts));
 }

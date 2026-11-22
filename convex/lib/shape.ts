@@ -132,6 +132,13 @@ export function shapeJobSummary(j: Doc<"jobs">): PublicJobSummary {
   };
 }
 
+/** What the "Apply for a job" pop-up needs to show a role and its own questions. */
+export type PublicApplyJob = { slug: string; title: Text; type: string; questions: Doc<"jobs">["questions"] };
+
+export function shapeApplyJob(j: Doc<"jobs">): PublicApplyJob {
+  return { slug: j.slug, title: j.title, type: j.type, questions: j.questions };
+}
+
 export type PublicJob = PublicJobSummary & {
   responsibilities: Text[];
   requirements: Text[];

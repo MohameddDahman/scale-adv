@@ -647,6 +647,24 @@ body {
   direction: ltr;
 }
 
+/* Phones: the title gets its own line, the timecode and play button sit under it. */
+@media (max-width: 35.99rem) {
+  .tl-toolbar {
+    flex-wrap: wrap;
+    row-gap: 0;
+    padding-top: 0.7rem;
+  }
+  .tl-title {
+    flex-basis: 100%;
+  }
+  .tl-timecode {
+    margin-inline-start: 0;
+  }
+  .tl-play {
+    margin-inline-start: auto;
+  }
+}
+
 .tl-body {
   display: grid;
   grid-template-columns: 1fr;
@@ -1011,830 +1029,416 @@ body {
 
 /* chart tokens: validated with the dataviz palette checker (light #fff surface, dark #161513) */
 
-/* ---------------------------- Project brief ---------------------------- */
-/* "Start a project": the page drops to black and white behind cinema
-   letterbox bars, a clapper snaps shut on the slate, every answer lands on
-   the timeline as a clip, and sending renders the brief. */
+/* --------------------------- Become our client --------------------------- */
+/* One short question per screen: a bottom sheet on phones, a centred card on
+   wider screens, and the same card inline on the contact page. */
 
 .brief-overlay {
   position: fixed;
   inset: 0;
   z-index: 70;
-  background: rgb(14 13 12 / 0.5);
-  -webkit-backdrop-filter: grayscale(1) brightness(0.5);
-  backdrop-filter: grayscale(1) brightness(0.5);
-  animation: brief-dim 0.45s var(--ease-out-quart) both;
-}
-.brief-overlay::before,
-.brief-overlay::after {
-  content: "";
-  position: absolute;
-  inset-inline: 0;
-  height: 6vh;
-  background: #000;
-  animation: brief-letterbox 0.6s var(--ease-snap) 0.05s both;
-}
-.brief-overlay::before {
-  top: 0;
-  transform-origin: top;
-}
-.brief-overlay::after {
-  bottom: 0;
-  transform-origin: bottom;
+  background: rgb(14 13 12 / 0.62);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  animation: brief-fade 0.3s ease-out both;
 }
 .brief-overlay[data-state="closed"] {
-  animation: brief-undim 0.22s ease-in both;
+  animation: brief-fade-out 0.2s ease-in both;
 }
 
 .brief-dialog {
   position: fixed;
   z-index: 71;
-  inset: 0;
-  margin: auto;
+  inset-inline: 0;
+  bottom: 0;
   display: flex;
-  width: min(54rem, calc(100vw - 2rem));
-  height: fit-content;
-  max-height: min(88dvh, 52rem);
+  max-height: 92dvh;
   outline: none;
-  animation: brief-rise 0.6s var(--ease-out-quart) both;
+  animation: sheet-up 0.42s var(--ease-out-quart) both;
 }
 .brief-dialog[data-state="closed"] {
-  animation: brief-drop 0.2s ease-in both;
+  animation: sheet-down 0.22s ease-in both;
+}
+@media (min-width: 48rem) {
+  .brief-dialog {
+    inset: 0;
+    margin: auto;
+    width: min(34rem, calc(100vw - 2rem));
+    height: fit-content;
+    max-height: min(88dvh, 46rem);
+    animation: brief-pop 0.35s var(--ease-out-quart) both;
+  }
+  .brief-dialog[data-state="closed"] {
+    animation: brief-pop-out 0.18s ease-in both;
+  }
 }
 
-.brief {
+.bf {
   position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
   min-height: 0;
   color: var(--color-chalk);
-  background: linear-gradient(180deg, var(--color-ink-900), var(--color-ink-950) 45%);
-  border: 1px solid rgb(243 240 235 / 0.14);
+  background: var(--color-ink-900);
+  border: 1px solid rgb(243 240 235 / 0.12);
 }
-.brief--dialog {
-  box-shadow:
-    0 40px 120px rgb(0 0 0 / 0.65),
-    0 0 0 1px rgb(0 0 0 / 0.4);
-  animation: brief-bump 0.32s ease-out 0.6s both;
+.bf--dialog {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 1.25rem 1.25rem 0 0;
+  border-bottom: 0;
+  padding: 0.55rem 1.25rem calc(1rem + env(safe-area-inset-bottom));
+  box-shadow: 0 -24px 80px rgb(0 0 0 / 0.55);
+}
+/* The sheet's grab handle. */
+.bf--dialog::before {
+  content: "";
+  flex-shrink: 0;
+  align-self: center;
+  width: 2.6rem;
+  height: 0.3rem;
+  margin-bottom: 0.9rem;
+  border-radius: 999px;
+  background: rgb(243 240 235 / 0.22);
+}
+@media (min-width: 48rem) {
+  .bf--dialog {
+    border-radius: 1.25rem;
+    border-bottom: 1px solid rgb(243 240 235 / 0.12);
+    padding: 1.75rem 2rem;
+    box-shadow: 0 40px 120px rgb(0 0 0 / 0.6);
+  }
+  .bf--dialog::before {
+    display: none;
+  }
+}
+.bf--inline {
+  border-radius: 1.25rem;
+  padding: 1.5rem 1.25rem;
+}
+@media (min-width: 48rem) {
+  .bf--inline {
+    padding: 2rem;
+  }
 }
 
-/* Slate */
-.brief-slate {
-  position: relative;
-  flex: none;
-}
-.brief-clapper {
-  height: 0.85rem;
-  background: repeating-linear-gradient(-56deg, var(--color-chalk) 0 13px, var(--color-ink-950) 13px 26px);
-  border-bottom: 2px solid var(--color-ink-950);
-  transform-origin: 0 100%;
-  animation: brief-clap 0.5s var(--ease-snap) 0.22s both;
-}
-[dir="rtl"] .brief-clapper {
-  background: repeating-linear-gradient(56deg, var(--color-chalk) 0 13px, var(--color-ink-950) 13px 26px);
-  transform-origin: 100% 100%;
-  animation-name: brief-clap-rtl;
-}
-.brief-slate-row {
+.bf-head {
   display: flex;
-  align-items: center;
-  gap: 1.25rem;
-  min-height: 3.1rem;
-  padding-block: 0.3rem;
-  padding-inline: 1.25rem 0.5rem;
-  border-bottom: 1px solid rgb(243 240 235 / 0.1);
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
 }
-.brief-slate-cell {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.5rem;
-}
-.brief-slate-cell .mono-label {
-  color: var(--color-ash);
-}
-.brief-slate-brand {
-  max-width: 18ch;
-  overflow: hidden;
+.bf-title {
   font-family: var(--font-display);
-  font-size: 0.95rem;
   font-style: italic;
-  font-weight: 900;
+  font-weight: 850;
   font-variation-settings: "wdth" 112;
-  line-height: 1.15;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
+  font-size: 1.45rem;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
 }
-:lang(ar) .brief-slate-brand {
+:lang(ar) .bf-title {
   font-style: normal;
   font-weight: 800;
   font-variation-settings: normal;
-  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.3;
 }
-.brief-slate-num {
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  font-variant-numeric: tabular-nums;
+.bf-sub {
+  margin-top: 0.4rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--color-smoke);
 }
-.brief-tc {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-inline-start: auto;
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.04em;
-  color: var(--color-signal);
-}
-.brief-rec-off {
-  animation: none;
-  background: var(--color-ash);
-}
-.brief-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.bf-close {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
   width: 2.75rem;
   height: 2.75rem;
+  margin-block-start: -0.4rem;
+  margin-inline-end: -0.6rem;
+  border-radius: 999px;
   color: var(--color-smoke);
-  border-radius: 2px;
-  cursor: pointer;
   transition:
     color 0.2s,
     background-color 0.2s;
 }
-.brief-close:hover {
+.bf-close:hover {
   color: var(--color-chalk);
   background: rgb(243 240 235 / 0.06);
 }
 
-/* Stage: one question at a time */
-.brief-stage {
+.bf-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: 1.35rem;
+}
+.bf-count {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--color-signal);
+  white-space: nowrap;
+}
+.bf-bar {
   position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding: 1.75rem 1.25rem 1.5rem;
-  scrollbar-width: thin;
+  flex: 1;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(243 240 235 / 0.1);
 }
-.brief--inline .brief-stage {
-  overflow: visible;
+.bf-bar > span {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--color-signal);
+  transform-origin: left;
+  transition: transform 0.45s var(--ease-out-quart);
 }
-.brief-step {
-  animation: brief-in-next 0.45s var(--ease-out-quart) both;
+[dir="rtl"] .bf-bar > span {
+  transform-origin: right;
 }
-.brief-step[data-dir="back"],
-[dir="rtl"] .brief-step {
-  animation-name: brief-in-back;
+
+.bf-step {
+  margin-top: 1.35rem;
+  animation: bf-in 0.38s var(--ease-out-quart) both;
 }
-[dir="rtl"] .brief-step[data-dir="back"] {
-  animation-name: brief-in-next;
+.bf-step[data-dir="back"] {
+  animation-name: bf-in-back;
 }
-.brief-eyebrow {
+[dir="rtl"] .bf-step {
+  animation-name: bf-in-back;
+}
+[dir="rtl"] .bf-step[data-dir="back"] {
+  animation-name: bf-in;
+}
+.bf-num {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
   color: var(--color-signal);
 }
-.brief-question {
-  margin-top: 0.8rem;
-  font-family: var(--font-display);
-  font-size: clamp(1.75rem, 3.6vw, 2.6rem);
-  font-style: italic;
-  font-weight: 850;
-  font-variation-settings: "wdth" 112;
-  letter-spacing: -0.02em;
-  line-height: 1;
-  text-wrap: balance;
+.bf-q {
+  margin-top: 0.35rem;
+  font-size: 1.28rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--color-chalk);
 }
-:lang(ar) .brief-question {
-  font-style: normal;
-  font-weight: 800;
-  font-variation-settings: normal;
-  letter-spacing: 0;
-  line-height: 1.2;
+.bf-optional {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-ash);
 }
-.brief-hint {
-  max-width: 52ch;
-  margin-top: 0.6rem;
-  font-size: 1rem;
+.bf-hint {
+  margin-top: 0.4rem;
+  font-size: 0.92rem;
   line-height: 1.5;
   color: var(--color-smoke);
 }
-.brief-fields {
-  margin-top: 1.75rem;
+.bf-field {
+  margin-top: 1.1rem;
 }
-.field.brief-big {
-  min-height: 3.5rem;
-  font-size: 1.2rem;
-  font-weight: 600;
+.bf-input {
+  min-height: 3.4rem;
+  border-radius: 0.75rem;
+  font-size: 1.02rem;
 }
-.brief-alert {
-  margin-top: 1.25rem;
-  padding: 0.85rem 1rem;
-  font-size: 0.95rem;
+textarea.bf-input {
+  min-height: 7.5rem;
+  padding-block: 0.85rem;
+}
+.bf-alert {
+  margin-top: 1rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid rgb(255 138 112 / 0.45);
+  border-radius: 0.6rem;
   background: rgb(255 138 112 / 0.1);
-  border: 1px solid rgb(255 138 112 / 0.5);
-}
-.brief-splice {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  inset-inline-start: 0;
-  width: 2px;
-  background: var(--color-signal);
-  box-shadow: 0 0 18px 2px rgb(255 91 31 / 0.55);
-  pointer-events: none;
-  animation: brief-splice 0.5s var(--ease-out-quart) both;
-}
-.brief-splice[data-dir="back"] {
-  animation-name: brief-splice-back;
+  font-size: 0.92rem;
 }
 
-/* Key hints for the number-key shortcuts (only with a mouse and keyboard) */
-.brief-key {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.15rem;
-  height: 1.15rem;
-  padding: 0 0.25rem;
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  line-height: 1;
-  color: var(--color-ash);
-  border: 1px solid rgb(243 240 235 / 0.2);
-  border-radius: 2px;
-}
-@media (hover: hover) and (pointer: fine) {
-  .brief-key {
-    display: inline-flex;
-  }
-}
-.chip-toggle:has(input:checked) .brief-key {
-  color: var(--color-ink-950);
-  border-color: rgb(14 13 12 / 0.3);
-}
-
-/* Service cards: viewfinder corners close in on the ones you pick */
-.brief-cards {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.75rem;
-}
-@media (min-width: 36rem) {
-  .brief-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-.brief-card {
+.bf-same {
   position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  min-height: 8.5rem;
-  padding: 1.15rem 1.25rem 1.2rem;
-  background: var(--color-ink-900);
-  border: 1px solid rgb(243 240 235 / 0.14);
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.4rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid rgb(243 240 235 / 0.18);
+  border-radius: 0.75rem;
+  font-size: 0.98rem;
   cursor: pointer;
-  user-select: none;
   transition:
     border-color 0.2s,
-    background-color 0.2s,
-    transform 0.2s var(--ease-out-quart);
+    background-color 0.2s;
 }
-.brief-card:hover {
-  background: var(--color-ink-850);
-  border-color: rgb(243 240 235 / 0.34);
-}
-.brief-card:active {
-  transform: scale(0.99);
-}
-.brief-card::after {
-  content: "";
-  position: absolute;
-  inset: 16px;
-  pointer-events: none;
-  --c: var(--color-signal);
-  --l: 14px;
-  background:
-    linear-gradient(var(--c), var(--c)) top left / var(--l) 2px no-repeat,
-    linear-gradient(var(--c), var(--c)) top left / 2px var(--l) no-repeat,
-    linear-gradient(var(--c), var(--c)) top right / var(--l) 2px no-repeat,
-    linear-gradient(var(--c), var(--c)) top right / 2px var(--l) no-repeat,
-    linear-gradient(var(--c), var(--c)) bottom left / var(--l) 2px no-repeat,
-    linear-gradient(var(--c), var(--c)) bottom left / 2px var(--l) no-repeat,
-    linear-gradient(var(--c), var(--c)) bottom right / var(--l) 2px no-repeat,
-    linear-gradient(var(--c), var(--c)) bottom right / 2px var(--l) no-repeat;
-  opacity: 0;
-  transition:
-    inset 0.35s var(--ease-snap),
-    opacity 0.2s;
-}
-.brief-card:has(input:checked) {
-  background:
-    linear-gradient(160deg, rgb(255 91 31 / 0.12), transparent 60%),
-    var(--color-ink-850);
-  border-color: rgb(255 91 31 / 0.6);
-}
-.brief-card:has(input:checked)::after {
-  inset: 6px;
-  opacity: 1;
-}
-.brief-card:has(input:focus-visible) {
-  outline: 2px solid var(--color-signal);
-  outline-offset: 3px;
-}
-.brief-card .brief-key {
-  position: absolute;
-  top: 0.85rem;
-  inset-inline-end: 0.9rem;
-  transition: opacity 0.15s;
-}
-.brief-card:has(input:checked) .brief-key {
-  opacity: 0;
-}
-.brief-card-verb {
-  font-family: var(--font-display);
-  font-size: clamp(1.55rem, 3vw, 2.1rem);
-  font-style: italic;
-  font-weight: 900;
-  font-variation-settings: "wdth" 112;
-  letter-spacing: -0.01em;
-  line-height: 0.95;
-  text-transform: uppercase;
-  transition: color 0.2s;
-}
-:lang(ar) .brief-card-verb {
-  font-style: normal;
-  font-weight: 800;
-  font-variation-settings: normal;
-  letter-spacing: 0;
-  line-height: 1.2;
-  text-transform: none;
-}
-.brief-card:has(input:checked) .brief-card-verb {
-  color: var(--color-signal);
-}
-.brief-card-name {
-  color: var(--color-ash);
-}
-.brief-card-body {
-  margin-top: auto;
-  padding-top: 0.35rem;
-  font-size: 0.92rem;
-  line-height: 1.45;
-  color: var(--color-smoke);
-}
-.brief-card-rec {
-  position: absolute;
-  top: 0.85rem;
-  inset-inline-end: 0.9rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  opacity: 0;
-  transform: translateY(-3px);
-  transition:
-    opacity 0.2s,
-    transform 0.25s var(--ease-out-quart);
-}
-.brief-card:has(input:checked) .brief-card-rec {
-  opacity: 1;
-  transform: none;
-}
-
-/* Budget: a level meter that lights up to the range you pick */
-.brief-meter {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.5rem;
-  align-items: end;
-}
-.brief-level {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 0.6rem;
-  cursor: pointer;
-}
-.brief-level-bar {
-  display: block;
-  width: 100%;
-  height: calc(1.25rem + var(--h) * 6.75rem);
-  background-color: rgb(243 240 235 / 0.14);
-  background-image: repeating-linear-gradient(0deg, transparent 0 4px, var(--color-ink-950) 4px 6px);
-  border: 1px solid rgb(243 240 235 / 0.1);
-  transition:
-    background-color 0.25s,
-    border-color 0.25s,
-    box-shadow 0.25s;
-  transition-delay: calc(var(--d, 0) * 45ms);
-}
-.brief-level:hover .brief-level-bar {
-  background-color: rgb(243 240 235 / 0.3);
-}
-.brief-level[data-lit="true"] .brief-level-bar {
-  background-color: rgb(255 91 31 / 0.5);
-  border-color: rgb(255 91 31 / 0.4);
-}
-.brief-level:has(input:checked) .brief-level-bar {
-  background-color: var(--color-signal);
+.bf-same:has(input:checked) {
   border-color: var(--color-signal);
-  box-shadow: 0 0 24px rgb(255 91 31 / 0.35);
+  background: rgb(255 91 31 / 0.08);
 }
-.brief-level:has(input:focus-visible) .brief-level-bar {
+.bf-same:has(input:focus-visible) {
   outline: 2px solid var(--color-signal);
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
-.brief-level-label {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  min-height: 2.25rem;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  line-height: 1.2;
-  text-align: center;
-  color: var(--color-smoke);
+.bf-same input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
-:lang(ar) .brief-level-label {
-  font-family: var(--font-sans);
-  font-size: 0.8rem;
-}
-.brief-level:has(input:checked) .brief-level-label {
-  color: var(--color-chalk);
-}
-
-/* Timeline: answers as clips, a playhead on the current scene */
-.brief-timeline {
-  flex: none;
-  padding: 0.9rem 1.25rem 0.25rem;
-  border-top: 1px solid rgb(243 240 235 / 0.1);
-}
-.brief-render {
-  height: 3px;
-  margin-bottom: 0.6rem;
-  overflow: hidden;
-  background: rgb(243 240 235 / 0.08);
-}
-.brief-render-fill {
-  display: block;
-  height: 100%;
-  background: var(--color-signal);
-  transform: scaleX(0);
-  transform-origin: left center;
-}
-[dir="rtl"] .brief-render-fill {
-  transform-origin: right center;
-}
-.brief[data-phase="sending"] .brief-render-fill {
-  animation: brief-render 1.3s cubic-bezier(0.3, 0.6, 0.4, 1) both;
-}
-.brief[data-phase="done"] .brief-render-fill {
-  transform: scaleX(1);
-}
-.brief-track-wrap {
-  position: relative;
-}
-.brief-track {
+.bf-same-box {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 3px;
+  flex-shrink: 0;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border: 1.5px solid rgb(243 240 235 / 0.4);
+  border-radius: 0.4rem;
+  color: transparent;
+  transition: all 0.2s;
 }
-.brief-clip > button {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.1rem;
-  width: 100%;
-  height: 2.7rem;
-  padding: 0 0.6rem;
-  text-align: start;
-  color: var(--color-smoke);
-  background: var(--color-ink-800);
-  border: 1px solid rgb(243 240 235 / 0.08);
-  border-inline-start: 3px solid rgb(243 240 235 / 0.22);
-  cursor: pointer;
-  transition:
-    background-color 0.25s,
-    border-color 0.25s,
-    color 0.25s;
-}
-.brief-clip > button:disabled {
-  cursor: default;
-}
-.brief-clip[data-state="idle"] > button {
-  color: var(--color-ash);
-  background: repeating-linear-gradient(135deg, rgb(243 240 235 / 0.05) 0 6px, transparent 6px 12px);
-}
-.brief-clip[data-state="done"] > button {
-  color: var(--color-chalk);
-  border-inline-start-color: var(--color-signal);
-}
-.brief-clip > button:not(:disabled):hover {
-  background: var(--color-ink-700);
-}
-.brief-clip[data-state="active"] > button {
+.bf-same:has(input:checked) .bf-same-box {
+  border-color: var(--color-signal);
+  background: var(--color-signal);
   color: var(--color-ink-950);
-  background: var(--color-signal);
-  border-color: var(--color-signal);
 }
-.brief-clip-label {
-  overflow: hidden;
+.bf-same-number {
+  display: block;
+  margin-top: 0.15rem;
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: 0.82rem;
+  color: var(--color-smoke);
+}
+.bf-social-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-:lang(ar) .brief-clip-label {
-  font-family: var(--font-sans);
-  font-size: 0.7rem;
-  letter-spacing: 0;
-}
-.brief-clip-value {
-  overflow: hidden;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.brief[data-phase="sending"] .brief-clip > button {
-  animation: brief-light 0.55s ease calc(var(--i) * 0.2s) both;
-}
-.brief-playhead {
-  position: absolute;
-  top: -0.55rem;
-  bottom: -0.3rem;
-  inset-inline-start: var(--pos);
-  z-index: 2;
-  width: 0;
-  pointer-events: none;
-  transition: inset-inline-start 0.55s var(--ease-snap);
-}
-.brief[data-phase="sending"] .brief-playhead {
-  transition-duration: 1.3s;
-  transition-timing-function: cubic-bezier(0.3, 0.6, 0.4, 1);
-}
-.brief-playhead::before {
-  content: "";
-  position: absolute;
-  top: 0.3rem;
-  bottom: 0;
-  inset-inline-start: -1px;
-  width: 2px;
-  background: var(--color-chalk);
-  box-shadow: 0 0 10px rgb(243 240 235 / 0.5);
-}
-.brief-playhead::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  inset-inline-start: -6px;
-  width: 12px;
-  height: 10px;
-  background: var(--color-chalk);
-  clip-path: polygon(0 0, 100% 0, 100% 55%, 50% 100%, 0 55%);
+  color: var(--color-chalk);
 }
 
-/* Footer */
-.brief-foot {
-  flex: none;
+/* Sticks to the bottom of the sheet, so Next stays above the phone keyboard. */
+.bf-foot {
+  position: sticky;
+  bottom: 0;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.9rem 1.25rem 1.25rem;
+  margin-top: 1.5rem;
+  padding-top: 0.75rem;
+  background: linear-gradient(to top, var(--color-ink-900) 72%, transparent);
 }
-.brief-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.75rem;
-  margin-inline-start: -0.5rem;
-  padding-inline: 0.5rem;
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: var(--color-smoke);
-  cursor: pointer;
-  transition: color 0.2s;
-}
-.brief-back:hover:not(:disabled) {
+.bf-back {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border: 1px solid rgb(243 240 235 / 0.22);
+  border-radius: 999px;
   color: var(--color-chalk);
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
 }
-.brief-back:disabled {
-  opacity: 0.35;
-  cursor: default;
+.bf-back:hover {
+  border-color: var(--color-chalk);
+  background: rgb(243 240 235 / 0.05);
 }
-.brief-enter {
-  display: none;
-  margin-inline-start: auto;
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  color: var(--color-ash);
+.bf-pill {
+  min-height: 3.5rem;
+  border-radius: 999px;
+  font-size: 1.02rem;
 }
-.brief-next {
-  min-width: 9.5rem;
-  margin-inline-start: auto;
-}
-.brief-next:disabled {
-  cursor: progress;
-  opacity: 0.85;
-}
-@media (hover: hover) and (pointer: fine) {
-  .brief-enter {
-    display: inline;
-  }
-  .brief-next {
-    margin-inline-start: 0;
-  }
+.bf-next {
+  flex: 1;
 }
 
-/* Sent */
-.brief-done {
-  padding-block: 0.5rem;
-  animation: brief-in-next 0.5s var(--ease-out-quart) both;
+.bf-done {
+  margin-top: 1.6rem;
 }
-.brief-printed {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--color-signal);
+.bf-done-mark {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 999px;
+  background: var(--color-signal);
+  color: var(--color-ink-950);
+  animation: bf-pop 0.5s var(--ease-out-quart) both;
 }
-.brief-done-title {
-  margin-top: 1rem;
-  font-size: clamp(2.6rem, 7vw, 4.5rem);
-  color: var(--color-chalk);
+.bf-done-title {
+  margin-top: 1.2rem;
+  font-size: clamp(1.8rem, 6vw, 2.4rem);
 }
-.brief-done-body {
+.bf-done-body {
   max-width: 46ch;
-  margin-top: 1rem;
-  font-size: 1.05rem;
+  margin-top: 0.8rem;
   line-height: 1.6;
   color: var(--color-smoke);
 }
 
-@media (min-width: 48rem) {
-  .brief-stage {
-    padding: 2.25rem 2.25rem 1.75rem;
-  }
-  .brief-timeline {
-    padding-inline: 2.25rem;
-  }
-  .brief-foot {
-    padding-inline: 2.25rem;
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
   }
 }
-
-/* Phones: the dialog takes the whole screen */
-@media (max-width: 39.99rem) {
-  .brief-dialog {
-    width: 100%;
-    height: 100%;
-    max-height: none;
-  }
-  .brief--dialog {
-    border: 0;
-  }
-  .brief-overlay::before,
-  .brief-overlay::after {
-    display: none;
-  }
-  .brief-slate-row {
-    gap: 0.85rem;
-    padding-inline-start: 1rem;
-  }
-  .brief-slate-cell:first-child .mono-label {
-    display: none;
-  }
-  .brief-clip > button {
-    height: 2.3rem;
-  }
-  .brief-clip-value {
-    display: none;
+@keyframes sheet-down {
+  to {
+    transform: translateY(100%);
   }
 }
-
-@keyframes brief-dim {
+@keyframes brief-pop {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+}
+@keyframes brief-pop-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+@keyframes brief-fade {
   from {
     opacity: 0;
   }
 }
-@keyframes brief-undim {
+@keyframes brief-fade-out {
   to {
     opacity: 0;
   }
 }
-@keyframes brief-letterbox {
-  from {
-    transform: scaleY(0);
-  }
-}
-@keyframes brief-rise {
+@keyframes bf-in {
   from {
     opacity: 0;
-    transform: translateY(28px) scale(0.98);
+    transform: translateX(18px);
   }
 }
-@keyframes brief-drop {
-  to {
-    opacity: 0;
-    transform: translateY(12px) scale(0.99);
-  }
-}
-@keyframes brief-clap {
-  0% {
-    transform: rotate(-11deg);
-  }
-  62% {
-    transform: rotate(0.8deg);
-  }
-  100% {
-    transform: rotate(0);
-  }
-}
-@keyframes brief-clap-rtl {
-  0% {
-    transform: rotate(11deg);
-  }
-  62% {
-    transform: rotate(-0.8deg);
-  }
-  100% {
-    transform: rotate(0);
-  }
-}
-@keyframes brief-bump {
-  0%,
-  100% {
-    translate: 0 0;
-  }
-  30% {
-    translate: 0 3px;
-  }
-  60% {
-    translate: 0 -1px;
-  }
-}
-@keyframes brief-in-next {
+@keyframes bf-in-back {
   from {
     opacity: 0;
-    transform: translateX(22px);
+    transform: translateX(-18px);
   }
 }
-@keyframes brief-in-back {
+@keyframes bf-pop {
   from {
     opacity: 0;
-    transform: translateX(-22px);
+    transform: scale(0.4);
   }
 }
-@keyframes brief-splice {
-  from {
-    inset-inline-start: 0;
-    opacity: 1;
-  }
-  75% {
-    opacity: 1;
-  }
-  to {
-    inset-inline-start: 100%;
-    opacity: 0;
-  }
-}
-@keyframes brief-splice-back {
-  from {
-    inset-inline-start: 100%;
-    opacity: 1;
-  }
-  75% {
-    opacity: 1;
-  }
-  to {
-    inset-inline-start: 0;
-    opacity: 0;
-  }
-}
-@keyframes brief-render {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(0.94);
-  }
-}
-@keyframes brief-light {
-  40% {
-    color: var(--color-ink-950);
-    background-color: var(--color-signal);
+@media (prefers-reduced-motion: reduce) {
+  .brief-dialog,
+  .brief-overlay,
+  .bf-step,
+  .bf-done-mark {
+    animation: none !important;
   }
 }
 
@@ -2254,5 +1858,425 @@ a.brand-card:focus-visible {
   }
   .why-item:nth-child(odd) {
     padding-inline-start: 0;
+  }
+}
+
+/* ------------------------- Hero buttons & numbers ------------------------- */
+/* Phones: two full-width pills, then the numbers side by side. */
+.hero-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+@media (max-width: 47.99rem) {
+  .hero-ctas {
+    flex-direction: column;
+  }
+  .hero-cta {
+    width: 100%;
+    min-height: 3.6rem;
+    border-radius: 999px;
+    font-size: 1.05rem;
+  }
+  .hero-cta.btn-signal {
+    box-shadow: 0 14px 40px rgb(255 91 31 / 0.28);
+  }
+}
+
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 2.5rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid rgb(243 240 235 / 0.1);
+}
+.hero-stat {
+  display: grid;
+  grid-template-areas: "icon" "value" "label";
+  align-content: start;
+  min-width: 0;
+}
+.hero-stat-label {
+  display: contents;
+}
+.hero-stat-icon {
+  grid-area: icon;
+  width: 1.2rem;
+  height: 1.2rem;
+  margin-bottom: 0.55rem;
+  color: var(--color-signal);
+}
+.hero-stat-value {
+  grid-area: value;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 7.4vw, 4.4rem);
+  font-style: italic;
+  font-weight: 900;
+  font-variation-settings: "wdth" 100;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+  white-space: nowrap;
+  color: var(--color-chalk);
+}
+.hero-stat-label > span {
+  grid-area: label;
+  margin-top: 0.45rem;
+  font-size: clamp(0.78rem, 2.9vw, 1rem);
+  line-height: 1.3;
+  color: var(--color-smoke);
+}
+@media (min-width: 48rem) {
+  .hero-stats {
+    gap: 2rem;
+    margin-top: 3.5rem;
+    padding-top: 2.5rem;
+  }
+  .hero-stat + .hero-stat {
+    padding-inline-start: 2rem;
+    border-inline-start: 1px solid rgb(243 240 235 / 0.1);
+  }
+}
+
+/* Counting numbers stay hidden until they start from zero (never a flash of
+   the final figure). If the script never runs, they appear after 2.5s. */
+html[data-js] .count-up:not([data-counted]) {
+  visibility: hidden;
+  animation: count-reveal 0s linear 2.5s forwards;
+}
+@keyframes count-reveal {
+  to {
+    visibility: visible;
+  }
+}
+
+/* ---------------------------- Brand slideshow ---------------------------- */
+.brand-marquee {
+  position: relative;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+.brand-track {
+  display: flex;
+  width: max-content;
+  animation: brand-marquee var(--duration, 40s) linear infinite;
+}
+[dir="rtl"] .brand-track {
+  animation-name: brand-marquee-rtl;
+}
+.brand-marquee:hover .brand-track,
+.brand-marquee:focus-within .brand-track,
+.brand-marquee:active .brand-track {
+  animation-play-state: paused;
+}
+.brand-marquee--still .brand-track {
+  margin-inline: auto;
+  animation: none;
+}
+.brand-slide {
+  flex: none;
+  width: 11.5rem;
+  padding-inline-end: 0.75rem;
+}
+@media (min-width: 48rem) {
+  .brand-slide {
+    width: 14rem;
+    padding-inline-end: 1rem;
+  }
+}
+.brand-slide .brand-card {
+  height: 100%;
+  border: 1px solid rgb(243 240 235 / 0.1);
+  background: var(--color-ink-950);
+}
+@keyframes brand-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes brand-marquee-rtl {
+  to {
+    transform: translateX(50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-track {
+    animation: none;
+  }
+  .brand-marquee {
+    overflow-x: auto;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
+/* ------------------------- Reels: slideshow on phones ------------------------- */
+@media (max-width: 47.99rem) {
+  .reel-rail {
+    display: flex;
+    gap: 0.75rem;
+    margin-inline: -1rem;
+    padding-inline: 1rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 1rem;
+    scrollbar-width: none;
+  }
+  .reel-rail::-webkit-scrollbar {
+    display: none;
+  }
+  .reel-rail > li {
+    flex: 0 0 76%;
+    scroll-snap-align: start;
+  }
+}
+
+/* -------------------------- Apply for a job pop-up -------------------------- */
+@media (min-width: 48rem) {
+  .apply-dialog {
+    width: min(46rem, calc(100vw - 2rem));
+  }
+}
+
+/* ------------------------------ Opening intro ------------------------------ */
+/* 0.0s the camera rolls (frame, REC, timecode) · 0.2s SCALE lands letter by
+   letter · 0.75s the ADV tab wipes in, a light passes over it · 1.4s the mark
+   flies into the nav while the black lifts like a curtain · ~2.4s gone.
+   Played by Intro.tsx; without it, the whole thing fades out on its own. */
+html[data-intro="skip"] .intro {
+  display: none;
+}
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  color: var(--color-chalk);
+  animation: intro-fallback 0.5s ease-in 2.6s forwards;
+}
+.intro[data-js] {
+  animation: none;
+}
+.intro-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(60% 50% at 50% 50%, rgb(255 91 31 / 0.08), transparent 70%),
+    var(--color-ink-950);
+  clip-path: inset(0 0 0 0);
+}
+.intro[data-phase="fly"] .intro-bg,
+.intro[data-phase="landed"] .intro-bg {
+  clip-path: inset(0 0 100% 0);
+  transition: clip-path 0.75s var(--ease-snap) 0.08s;
+}
+
+/* Viewfinder corners, landing a beat after the black. */
+.intro-frame {
+  position: absolute;
+  inset: clamp(1rem, 5vw, 3rem);
+  --c: rgb(243 240 235 / 0.7);
+  --l: clamp(18px, 3vw, 34px);
+  background:
+    linear-gradient(var(--c), var(--c)) top left / var(--l) 2px no-repeat,
+    linear-gradient(var(--c), var(--c)) top left / 2px var(--l) no-repeat,
+    linear-gradient(var(--c), var(--c)) top right / var(--l) 2px no-repeat,
+    linear-gradient(var(--c), var(--c)) top right / 2px var(--l) no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom left / var(--l) 2px no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom left / 2px var(--l) no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom right / var(--l) 2px no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom right / 2px var(--l) no-repeat;
+  animation: intro-frame 0.7s var(--ease-out-quart) 0.05s both;
+}
+.intro-hud {
+  position: absolute;
+  inset-inline: calc(clamp(1rem, 5vw, 3rem) + 1rem);
+  top: calc(clamp(1rem, 5vw, 3rem) + 0.9rem);
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: rgb(243 240 235 / 0.75);
+  animation: intro-fade 0.4s ease-out 0.15s both;
+}
+.intro-rec {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+.intro-tc {
+  color: var(--color-signal);
+  font-variant-numeric: tabular-nums;
+}
+
+.intro-center {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(0.9rem, 2.4vw, 1.6rem);
+}
+/* Same type as the nav logo (Wordmark.tsx), so it can shrink into it exactly. */
+.intro-mark {
+  display: inline-flex;
+  align-items: flex-start;
+  font-size: clamp(3.2rem, 16vw, 11.5rem);
+  line-height: 1;
+  transform-origin: center;
+  will-change: transform;
+  transition:
+    transform 0.72s var(--ease-snap),
+    opacity 0.26s ease-out;
+}
+.intro-scale {
+  display: inline-flex;
+  font-family: var(--font-mona);
+  font-style: italic;
+  font-weight: 900;
+  font-variation-settings: "wdth" 125;
+  letter-spacing: -0.045em;
+  color: var(--color-chalk);
+}
+.intro-scale > span {
+  display: inline-block;
+  animation: intro-letter 0.62s var(--ease-out-quart) both;
+  animation-delay: calc(0.2s + var(--i) * 0.065s);
+}
+.intro-adv {
+  position: relative;
+  margin-inline-start: 0.08em;
+  margin-top: 0.02em;
+  overflow: hidden;
+  padding: 0.16em 0.32em 0.12em;
+  transform: skewX(-14deg);
+  background: var(--color-signal);
+  font-family: var(--font-mona);
+  font-size: 0.32em;
+  font-style: italic;
+  font-weight: 900;
+  font-variation-settings: "wdth" 125;
+  letter-spacing: 0.02em;
+  color: var(--color-ink-950);
+  animation: intro-wipe 0.5s var(--ease-snap) 0.75s both;
+}
+/* A light passing over the tab. */
+.intro-adv::after {
+  content: "";
+  position: absolute;
+  inset: -20% auto -20% -60%;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.85), transparent);
+  transform: skewX(-20deg);
+  animation: intro-shine 0.7s ease-out 1.05s both;
+}
+.intro-tag {
+  font-family: var(--font-mono);
+  font-size: clamp(0.62rem, 1.6vw, 0.8rem);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgb(243 240 235 / 0.6);
+  animation: intro-fade 0.5s ease-out 0.95s both;
+}
+:lang(ar) .intro-tag {
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+  font-size: clamp(0.8rem, 2vw, 0.95rem);
+}
+/* A render bar along the bottom of the frame. */
+.intro-bar {
+  position: absolute;
+  inset-inline: clamp(1rem, 5vw, 3rem);
+  bottom: clamp(1rem, 5vw, 3rem);
+  height: 2px;
+  background: var(--color-signal);
+  transform-origin: left;
+  animation: intro-bar 1.35s cubic-bezier(0.6, 0.05, 0.3, 1) 0.1s both;
+}
+[dir="rtl"] .intro-bar {
+  transform-origin: right;
+}
+
+.intro[data-phase="fly"] .intro-frame,
+.intro[data-phase="fly"] .intro-hud,
+.intro[data-phase="fly"] .intro-tag,
+.intro[data-phase="fly"] .intro-bar,
+.intro[data-phase="landed"] .intro-frame,
+.intro[data-phase="landed"] .intro-hud,
+.intro[data-phase="landed"] .intro-tag,
+.intro[data-phase="landed"] .intro-bar {
+  opacity: 0;
+  transition: opacity 0.25s ease-out;
+}
+.intro[data-phase="landed"] .intro-mark {
+  opacity: 0;
+}
+
+/* The nav logo waits for the flying mark, then takes over. */
+[data-site-logo] {
+  transition: opacity 0.2s ease-out;
+}
+html[data-intro="play"] [data-site-logo] {
+  opacity: 0;
+  animation: intro-fallback-in 0s linear 3.2s forwards;
+}
+/* The headline rises as the curtain lifts, not hidden behind it. */
+html[data-intro="play"] .hero-title {
+  animation-play-state: paused;
+}
+
+@keyframes intro-frame {
+  from {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+@keyframes intro-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes intro-letter {
+  from {
+    opacity: 0;
+    transform: translateY(0.4em) skewX(-16deg);
+    filter: blur(10px);
+  }
+}
+@keyframes intro-wipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes intro-shine {
+  to {
+    left: 120%;
+  }
+}
+@keyframes intro-bar {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes intro-fallback {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+@keyframes intro-fallback-in {
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .intro {
+    display: none;
   }
 }

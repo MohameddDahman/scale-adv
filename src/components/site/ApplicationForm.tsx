@@ -1,8 +1,8 @@
 "use client";
 
-import { CheckCircle, FileText, Paperclip, Trash, WarningCircle } from "@phosphor-icons/react";
+import { CheckCircle, FileText, InstagramLogo, LinkSimple, Paperclip, TiktokLogo, Trash, WarningCircle } from "@phosphor-icons/react";
 import Link from "next/link";
-import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from "react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import type { PublicJob } from "@convex/lib/shape";
@@ -10,6 +10,7 @@ import { cvUploadEndpoint, publicConvex, readError, uploadWithProgress } from "@
 import { cn } from "@/lib/format";
 import { compressImage, ImageCompressError } from "@/lib/image-compress";
 import { tx, type Dictionary, type Locale } from "@/lib/i18n";
+import { profileLink } from "./BriefFlow";
 import { describedBy, FormField } from "./FormField";
 
 /** Matches MAX_CV_BYTES in convex/lib/storage.ts. Photos of a CV are shrunk before this check. */
@@ -25,7 +26,6 @@ const TYPES = [
 /** Stored in English so the dashboard reads consistently. */
 const EXPERIENCE_VALUES = ["Less than 1 year", "1–2 years", "3–5 years", "More than 5 years"];
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const phoneOk = (v: string) => {
   const digits = v.replace(/[^0-9٠-٩]/g, "");
   return digits.length >= 8 && digits.length <= 15;
@@ -42,33 +42,47 @@ const formatBytes = (n: number) => (n > 1024 * 1024 ? `${(n / 1024 / 1024).toFix
 
 type Job = Pick<PublicJob, "slug" | "type" | "questions">;
 
+/**
+ * The job application: on a role's page, on the open application page, and in
+ * the "Apply for a job" pop-up (with onClose). No email or start date: the
+ * team reaches out by phone or WhatsApp.
+ */
 export function ApplicationForm({
   locale,
   t,
   e,
   job,
   careersHref,
+  onClose,
+  onSent,
 }: {
   locale: Locale;
   t: Dictionary["apply"];
   e: Dictionary["errors"];
   job: Job | null;
   careersHref: string;
+  /** In the pop-up: the success screen offers Close instead of a link to the other roles. */
+  onClose?: () => void;
+  /** Called once the application is in. */
+  onSent?: () => void;
 }) {
   const startedAt = useRef(0);
   const summaryRef = useRef<HTMLDivElement>(null);
   const doneRef = useRef<HTMLHeadingElement>(null);
+  // Field ids are unique per form, so the pop-up and a page form never clash.
+  const uid = useId();
+  const fid = (key: string) => `${uid}-${key}`;
   const [v, setV] = useState({
     name: "",
-    email: "",
     phone: "",
     city: "",
     experience: "",
     portfolioUrl: "",
-    profileUrl: "",
+    instagram: "",
+    tiktok: "",
+    otherLink: "",
     coverNote: "",
     expectedSalary: "",
-    startDate: "",
     consent: false,
     honeypot: "",
   });
@@ -128,11 +142,12 @@ export function ApplicationForm({
   function validate() {
     const next: Record<string, string> = {};
     if (!v.name.trim()) next.name = e.required;
-    if (!v.email.trim()) next.email = e.required;
-    else if (!EMAIL_RE.test(v.email.trim())) next.email = e.email;
     if (!v.phone.trim()) next.phone = e.required;
     else if (!phoneOk(v.phone)) next.phone = e.phone;
     if (v.portfolioUrl.trim() && !urlOk(v.portfolioUrl.trim())) next.portfolioUrl = e.url;
+    if (v.instagram.trim() && profileLink("instagram", v.instagram) === null) next.instagram = e.socialLink;
+    if (v.tiktok.trim() && profileLink("tiktok", v.tiktok) === null) next.tiktok = e.socialLink;
+    if (v.otherLink.trim() && !urlOk(v.otherLink.trim())) next.otherLink = e.url;
     if (!isTalent && !cv && !v.portfolioUrl.trim()) next.cv = e.cvOrPortfolio;
     for (const q of questions) {
       const a = (answers[q.id] ?? "").trim();
@@ -192,20 +207,21 @@ export function ApplicationForm({
     setState("sending");
     try {
       const opt = (s: string) => (s.trim() ? s.trim() : undefined);
+      const socials = [profileLink("instagram", v.instagram), profileLink("tiktok", v.tiktok), opt(v.otherLink) ?? ""].filter(
+        (x): x is string => !!x,
+      );
       const result = await client.mutation(api.forms.submitApplication, {
         jobSlug: job?.slug,
         name: v.name.trim(),
-        email: v.email.trim(),
         phone: v.phone.trim(),
         city: opt(v.city),
         experience: opt(v.experience),
         portfolioUrl: opt(v.portfolioUrl),
-        profileUrl: opt(v.profileUrl),
+        socials,
         cv: cv ? (cv.storageId as Id<"_storage">) : undefined,
         cvName: cv?.name,
         coverNote: opt(v.coverNote),
         expectedSalary: opt(v.expectedSalary),
-        startDate: opt(v.startDate),
         answers: questions.map((q) => ({ questionId: q.id, value: (answers[q.id] ?? "").trim() })).filter((a) => a.value),
         locale,
         consent: v.consent,
@@ -214,6 +230,7 @@ export function ApplicationForm({
       });
       setReference(result.ref);
       setState("done");
+      onSent?.();
     } catch (err) {
       setState("idle");
       mapServerError(readError(err));
@@ -235,17 +252,23 @@ export function ApplicationForm({
           </span>
           {t.successBody.split("{ref}")[1]}
         </p>
-        <Link href={careersHref} className="btn btn-line mt-8">
-          {t.another}
-        </Link>
+        {onClose ? (
+          <button type="button" className="btn btn-signal mt-8" onClick={onClose}>
+            {t.close}
+          </button>
+        ) : (
+          <Link href={careersHref} className="btn btn-line mt-8">
+            {t.another}
+          </Link>
+        )}
       </div>
     );
   }
 
-  const fieldProps = (id: string, hint?: string) => ({
-    id,
-    "aria-invalid": errors[id] ? true : undefined,
-    "aria-describedby": describedBy(id, errors[id], hint),
+  const fieldProps = (key: string, hint?: string) => ({
+    id: fid(key),
+    "aria-invalid": errors[key] ? true : undefined,
+    "aria-describedby": describedBy(fid(key), errors[key], hint),
     className: "field",
   });
 
@@ -266,26 +289,23 @@ export function ApplicationForm({
 
       {/* Honeypot: hidden from people, tempting for bots. */}
       <div className="sr-only" aria-hidden>
-        <label htmlFor="website">Website</label>
-        <input id="website" name="website" tabIndex={-1} autoComplete="off" value={v.honeypot} onChange={set("honeypot")} />
+        <label htmlFor={fid("website")}>Website</label>
+        <input id={fid("website")} name="website" tabIndex={-1} autoComplete="off" value={v.honeypot} onChange={set("honeypot")} />
       </div>
 
       <fieldset className="space-y-6">
         <legend className="mono-label mb-6 text-ash">{t.sections.you}</legend>
         <div className="grid gap-6 md:grid-cols-2">
-          <FormField id="name" label={t.name} required error={errors.name}>
+          <FormField id={fid("name")} label={t.name} required error={errors.name}>
             <input {...fieldProps("name")} autoComplete="name" value={v.name} onChange={set("name")} />
           </FormField>
-          <FormField id="email" label={t.email} required error={errors.email}>
-            <input {...fieldProps("email")} type="email" inputMode="email" autoComplete="email" dir="ltr" value={v.email} onChange={set("email")} />
-          </FormField>
-          <FormField id="phone" label={t.phone} required hint={t.phoneHint} error={errors.phone}>
+          <FormField id={fid("phone")} label={t.phone} required hint={t.phoneHint} error={errors.phone}>
             <input {...fieldProps("phone", t.phoneHint)} type="tel" inputMode="tel" autoComplete="tel" dir="ltr" value={v.phone} onChange={set("phone")} />
           </FormField>
-          <FormField id="city" label={t.city} optionalLabel={t.optional}>
+          <FormField id={fid("city")} label={t.city} optionalLabel={t.optional}>
             <input {...fieldProps("city")} autoComplete="address-level2" value={v.city} onChange={set("city")} />
           </FormField>
-          <FormField id="experience" label={t.experience} optionalLabel={t.optional}>
+          <FormField id={fid("experience")} label={t.experience} optionalLabel={t.optional}>
             <select {...fieldProps("experience")} value={v.experience} onChange={set("experience")}>
               <option value="">{t.choose}</option>
               {t.experienceOptions.map((label, i) => (
@@ -295,33 +315,25 @@ export function ApplicationForm({
               ))}
             </select>
           </FormField>
-          <FormField id="startDate" label={t.start} optionalLabel={t.optional}>
-            <input {...fieldProps("startDate")} type="date" value={v.startDate} onChange={set("startDate")} />
-          </FormField>
         </div>
       </fieldset>
 
       <fieldset className="space-y-6">
         <legend className="mono-label mb-6 text-ash">{t.sections.work}</legend>
-        <div className="grid gap-6 md:grid-cols-2">
-          <FormField id="portfolioUrl" label={t.portfolio} hint={t.portfolioHint} error={errors.portfolioUrl} required={!isTalent && !cv}>
-            <input
-              {...fieldProps("portfolioUrl", t.portfolioHint)}
-              type="url"
-              inputMode="url"
-              dir="ltr"
-              placeholder="https://"
-              value={v.portfolioUrl}
-              onChange={set("portfolioUrl")}
-            />
-          </FormField>
-          <FormField id="profileUrl" label={t.profile} optionalLabel={t.optional}>
-            <input {...fieldProps("profileUrl")} type="url" inputMode="url" dir="ltr" placeholder="https://" value={v.profileUrl} onChange={set("profileUrl")} />
-          </FormField>
-        </div>
+        <FormField id={fid("portfolioUrl")} label={t.portfolio} hint={t.portfolioHint} error={errors.portfolioUrl} required={!isTalent && !cv}>
+          <input
+            {...fieldProps("portfolioUrl", t.portfolioHint)}
+            type="url"
+            inputMode="url"
+            dir="ltr"
+            placeholder="https://"
+            value={v.portfolioUrl}
+            onChange={set("portfolioUrl")}
+          />
+        </FormField>
 
         <div>
-          <span className="field-label" id="cv-label">
+          <span className="field-label" id={fid("cv-label")}>
             {t.cv}
           </span>
           <div
@@ -361,7 +373,7 @@ export function ApplicationForm({
                 <p className="text-[0.92rem] text-chalk">
                   {t.uploading} <span dir="ltr">{uploading.name}</span>
                 </p>
-                <div className="mt-3 h-1.5 w-full bg-chalk/10" role="progressbar" aria-valuenow={Math.round(uploading.progress * 100)} aria-valuemin={0} aria-valuemax={100} aria-labelledby="cv-label">
+                <div className="mt-3 h-1.5 w-full bg-chalk/10" role="progressbar" aria-valuenow={Math.round(uploading.progress * 100)} aria-valuemin={0} aria-valuemax={100} aria-labelledby={fid("cv-label")}>
                   <div className="h-full bg-signal transition-[width]" style={{ width: `${Math.round(uploading.progress * 100)}%` }} />
                 </div>
               </div>
@@ -374,8 +386,8 @@ export function ApplicationForm({
                     type="file"
                     className="sr-only"
                     accept=".pdf,.doc,.docx,image/*"
-                    aria-labelledby="cv-label"
-                    aria-describedby={errors.cv ? "cv-error" : "cv-hint"}
+                    aria-labelledby={fid("cv-label")}
+                    aria-describedby={errors.cv ? fid("cv-error") : fid("cv-hint")}
                     onChange={(ev) => void handleFile(ev.target.files?.[0])}
                   />
                 </label>
@@ -384,14 +396,54 @@ export function ApplicationForm({
             )}
           </div>
           {errors.cv ? (
-            <p id="cv-error" className="field-error" role="alert">
+            <p id={fid("cv-error")} className="field-error" role="alert">
               {errors.cv}
             </p>
           ) : (
-            <p id="cv-hint" className="field-hint">
+            <p id={fid("cv-hint")} className="field-hint">
               {t.cvHint}
             </p>
           )}
+        </div>
+      </fieldset>
+
+      <fieldset className="space-y-4">
+        <legend className="mono-label mb-2 text-ash">
+          {t.socials} <span className="ms-1 normal-case tracking-normal">({t.optional})</span>
+        </legend>
+        <p className="field-hint !mt-0">{t.socialsHint}</p>
+        <div className="grid gap-4 md:grid-cols-3">
+          {(
+            [
+              ["instagram", t.socialInstagram, InstagramLogo, "@username"],
+              ["tiktok", t.socialTiktok, TiktokLogo, "@username"],
+              ["otherLink", t.socialOther, LinkSimple, "https://"],
+            ] as const
+          ).map(([key, label, Icon, placeholder]) => (
+            <div key={key}>
+              <label htmlFor={fid(key)} className="field-label inline-flex items-center gap-2">
+                <Icon className="size-4" aria-hidden />
+                {label}
+              </label>
+              <input
+                {...fieldProps(key)}
+                type="text"
+                inputMode="url"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                dir="ltr"
+                placeholder={placeholder}
+                value={v[key]}
+                onChange={set(key)}
+              />
+              {errors[key] ? (
+                <p id={`${fid(key)}-error`} className="field-error" role="alert">
+                  {errors[key]}
+                </p>
+              ) : null}
+            </div>
+          ))}
         </div>
       </fieldset>
 
@@ -407,7 +459,7 @@ export function ApplicationForm({
               if (errors[id]) setErrors(({ [id]: _, ...rest }) => rest);
             };
             return (
-              <FormField key={q.id} id={id} label={label} required={q.required} optionalLabel={t.optional} error={errors[id]}>
+              <FormField key={q.id} id={fid(id)} label={label} required={q.required} optionalLabel={t.optional} error={errors[id]}>
                 {q.kind === "long" ? (
                   <textarea {...fieldProps(id)} value={value} onChange={(ev) => onChange(ev.target.value)} rows={4} />
                 ) : q.kind === "select" ? (
@@ -426,7 +478,7 @@ export function ApplicationForm({
                       ["No", t.no],
                     ].map(([val, text]) => (
                       <label key={val} className="chip-toggle">
-                        <input type="radio" name={id} className="sr-only" checked={value === val} onChange={() => onChange(val)} />
+                        <input type="radio" name={fid(id)} className="sr-only" checked={value === val} onChange={() => onChange(val)} />
                         {text}
                       </label>
                     ))}
@@ -449,10 +501,10 @@ export function ApplicationForm({
 
       <fieldset className="space-y-6">
         <legend className="mono-label mb-6 text-ash">{t.sections.extra}</legend>
-        <FormField id="coverNote" label={t.cover} hint={t.coverHint} optionalLabel={t.optional}>
+        <FormField id={fid("coverNote")} label={t.cover} hint={t.coverHint} optionalLabel={t.optional}>
           <textarea {...fieldProps("coverNote", t.coverHint)} rows={4} value={v.coverNote} onChange={set("coverNote")} />
         </FormField>
-        <FormField id="expectedSalary" label={t.salary} hint={t.salaryHint} className="max-w-sm">
+        <FormField id={fid("expectedSalary")} label={t.salary} hint={t.salaryHint} className="max-w-sm">
           <input {...fieldProps("expectedSalary", t.salaryHint)} inputMode="numeric" dir="ltr" value={v.expectedSalary} onChange={set("expectedSalary")} />
         </FormField>
         <div>
@@ -462,13 +514,13 @@ export function ApplicationForm({
               checked={v.consent}
               onChange={set("consent")}
               aria-invalid={errors.consent ? true : undefined}
-              aria-describedby={errors.consent ? "consent-error" : undefined}
+              aria-describedby={errors.consent ? fid("consent-error") : undefined}
               className="mt-1 size-5 shrink-0 accent-[var(--color-signal)]"
             />
             {t.consent}
           </label>
           {errors.consent ? (
-            <p id="consent-error" className="field-error" role="alert">
+            <p id={fid("consent-error")} className="field-error" role="alert">
               {errors.consent}
             </p>
           ) : null}

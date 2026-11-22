@@ -7,7 +7,7 @@ import { cn } from "@/lib/format";
 export function Wordmark({ className, tagline }: { className?: string; tagline?: string }) {
   return (
     <span className={cn("inline-flex flex-col items-start leading-none", className)} dir="ltr">
-      <span className="inline-flex items-start" aria-hidden="true">
+      <span className="inline-flex items-start" aria-hidden="true" data-wordmark-row>
         <span
           className="font-[family-name:var(--font-mona)] text-[1em] font-black italic tracking-[-0.045em] text-chalk"
           style={{ fontVariationSettings: '"wdth" 125' }}

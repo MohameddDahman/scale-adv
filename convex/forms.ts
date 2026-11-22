@@ -9,7 +9,7 @@ import { internalMutation, mutation } from "./_generated/server";
 import { logActivity } from "./lib/activity";
 import { hitLimit } from "./lib/rateLimit";
 import { CV_TYPES, MAX_CV_BYTES } from "./lib/storage";
-import { clean, fail, isEmail, isUrl, normalizePhone, normalizeUrl, requireText } from "./lib/util";
+import { clean, fail, isEmail, isUrl, normalizePhone, normalizeSocials, normalizeUrl, requireText } from "./lib/util";
 import { loadSettings } from "./site";
 
 const LEAD_SERVICES = ["content", "production", "media_buying", "full"];
@@ -26,15 +26,22 @@ const reference = (prefix: string, id: string) => `${prefix}-${id.slice(-6).toUp
 const looksLikeBot = (honeypot?: string, elapsedMs?: number) =>
   !!honeypot || (elapsedMs !== undefined && elapsedMs < 2500);
 
+/**
+ * "Become our client": the short form asks for a name, phone, WhatsApp and
+ * social links. Business name, services and the rest are optional, so older
+ * pages and the dashboard can still send them.
+ */
 export const submitLead = mutation({
   args: {
     name: v.string(),
-    company: v.string(),
+    company: v.optional(v.string()),
     phone: v.string(),
+    whatsapp: v.optional(v.string()),
+    socials: v.optional(v.array(v.string())),
     email: v.optional(v.string()),
     city: v.optional(v.string()),
     link: v.optional(v.string()),
-    services: v.array(v.string()),
+    services: v.optional(v.array(v.string())),
     budget: v.optional(v.string()),
     industry: v.optional(v.string()),
     message: v.optional(v.string()),
@@ -47,13 +54,15 @@ export const submitLead = mutation({
     if (looksLikeBot(a.honeypot, a.elapsedMs)) return { ref: "L-000000" };
 
     const name = requireText(a.name, "Your name", 80, "name");
-    const company = requireText(a.company, "Business name", 120, "company");
+    const company = clean(a.company, 120) ?? "";
     const phone = normalizePhone(a.phone);
     if (!phone) fail("Enter a valid phone number.", "phone");
+    const whatsapp = a.whatsapp?.trim() ? normalizePhone(a.whatsapp) : phone;
+    if (!whatsapp) fail("Enter a valid WhatsApp number.", "whatsapp");
+    const socials = normalizeSocials(a.socials);
     const email = clean(a.email, 160)?.toLowerCase();
     if (email && !isEmail(email)) fail("Enter a valid email address.", "email");
-    const services = [...new Set(a.services.filter((s) => LEAD_SERVICES.includes(s)))];
-    if (services.length === 0) fail("Pick at least one service.", "services");
+    const services = [...new Set((a.services ?? []).filter((s) => LEAD_SERVICES.includes(s)))];
 
     if (!(await hitLimit(ctx, `lead:${phone}`, 3, HOUR))) limited();
     if (!(await hitLimit(ctx, "lead:global", 120, HOUR))) limited();
@@ -64,6 +73,8 @@ export const submitLead = mutation({
       name,
       company,
       phone,
+      whatsapp,
+      socials: socials.length ? socials : undefined,
       email,
       city: clean(a.city, 80),
       link: normalizeUrl(a.link),
@@ -76,10 +87,10 @@ export const submitLead = mutation({
       origin: "website",
       status: "new",
       tags: [],
-      searchText: [name, company, phone, email, message].filter(Boolean).join(" "),
+      searchText: [name, company, phone, whatsapp !== phone ? whatsapp : "", email, message].filter(Boolean).join(" "),
       updatedAt: now,
     });
-    await logActivity(ctx, null, "received", "lead", `${name} — ${company}`, id);
+    await logActivity(ctx, null, "received", "lead", company ? `${name} — ${company}` : name, id);
     return { ref: reference("L", id) };
   },
 });
@@ -100,12 +111,14 @@ export const submitApplication = mutation({
   args: {
     jobSlug: v.optional(v.string()),
     name: v.string(),
-    email: v.string(),
+    /** No longer asked for; kept so older pages still submit. */
+    email: v.optional(v.string()),
     phone: v.string(),
     city: v.optional(v.string()),
     experience: v.optional(v.string()),
     portfolioUrl: v.optional(v.string()),
     profileUrl: v.optional(v.string()),
+    socials: v.optional(v.array(v.string())),
     cv: v.optional(v.id("_storage")),
     cvName: v.optional(v.string()),
     coverNote: v.optional(v.string()),
@@ -135,11 +148,12 @@ export const submitApplication = mutation({
     }
 
     const name = requireText(a.name, "Your name", 80, "name");
-    const email = requireText(a.email, "Email", 160, "email").toLowerCase();
-    if (!isEmail(email)) fail("Enter a valid email address.", "email");
+    const email = clean(a.email, 160)?.toLowerCase();
+    if (email && !isEmail(email)) fail("Enter a valid email address.", "email");
     const phone = normalizePhone(a.phone);
     if (!phone) fail("Enter a valid phone number.", "phone");
     if (!a.consent) fail("Please confirm we can store your application.", "consent");
+    const socials = normalizeSocials(a.socials);
 
     const portfolioUrl = normalizeUrl(a.portfolioUrl);
     if (a.portfolioUrl?.trim() && !portfolioUrl) fail("Enter a valid link, starting with https://", "portfolioUrl");
@@ -178,7 +192,7 @@ export const submitApplication = mutation({
       if (value) answers.push({ questionId: q.id, label: q.label.en || q.label.ar, value });
     }
 
-    if (!(await hitLimit(ctx, `apply:${email}`, 5, 24 * HOUR))) limited();
+    if (!(await hitLimit(ctx, `apply:${phone}`, 5, 24 * HOUR))) limited();
     if (!(await hitLimit(ctx, "apply:global", 200, HOUR))) limited();
 
     const coverNote = clean(a.coverNote, 3000);
@@ -194,6 +208,7 @@ export const submitApplication = mutation({
       experience: clean(a.experience, 40),
       portfolioUrl,
       profileUrl,
+      socials: socials.length ? socials : undefined,
       cv: a.cv,
       cvName: clean(a.cvName, 160),
       cvType,

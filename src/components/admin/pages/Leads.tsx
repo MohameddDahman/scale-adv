@@ -364,7 +364,7 @@ function LeadSheet({ id, onClose }: { id: string | null; onClose: () => void }) 
       ) : (
         <div className="space-y-6 p-5">
           <div className="flex flex-wrap gap-2">
-            <a href={whatsappHref(lead.phone, `Hi ${lead.name.split(" ")[0]}, this is SCALE ADV about your brief for ${lead.company}.`)} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center gap-2 rounded-[4px] bg-[#25d366] px-3.5 text-[0.84rem] font-semibold text-[#0b3d1f] hover:opacity-90">
+            <a href={whatsappHref(lead.whatsapp ?? lead.phone, `Hi ${lead.name.split(" ")[0]}, this is SCALE ADV about your brief${lead.company ? ` for ${lead.company}` : ""}.`)} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center gap-2 rounded-[4px] bg-[#25d366] px-3.5 text-[0.84rem] font-semibold text-[#0b3d1f] hover:opacity-90">
               <WhatsappLogo className="size-4" weight="fill" aria-hidden /> WhatsApp
             </a>
             <a href={`tel:${lead.phone}`} className="inline-flex h-9 items-center gap-2 rounded-[4px] border border-a-line-strong px-3.5 text-[0.84rem] font-semibold hover:bg-a-hover">
@@ -428,6 +428,20 @@ function LeadSheet({ id, onClose }: { id: string | null; onClose: () => void }) 
           <dl className="grid grid-cols-[8rem_1fr] gap-x-4 gap-y-2.5 rounded-[6px] border border-a-line p-4 text-[0.84rem]">
             <Detail label="Contact">{lead.name}</Detail>
             <Detail label="Phone"><span dir="ltr">{lead.phone}</span></Detail>
+            {lead.whatsapp && lead.whatsapp !== lead.phone ? (
+              <Detail label="WhatsApp"><span dir="ltr">{lead.whatsapp}</span></Detail>
+            ) : null}
+            {lead.socials?.length ? (
+              <Detail label="Social">
+                <span className="flex flex-col gap-1">
+                  {lead.socials.map((url) => (
+                    <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="break-all text-signal-600 hover:underline dark:text-signal">
+                      {url.replace(/^https?:\/\/(www\.)?/, "")}
+                    </a>
+                  ))}
+                </span>
+              </Detail>
+            ) : null}
             {lead.email ? <Detail label="Email">{lead.email}</Detail> : null}
             {lead.city ? <Detail label="City">{lead.city}</Detail> : null}
             {lead.link ? (
@@ -437,7 +451,7 @@ function LeadSheet({ id, onClose }: { id: string | null; onClose: () => void }) 
                 </a>
               </Detail>
             ) : null}
-            <Detail label="Wants">{lead.services.map((s) => SERVICE_LABEL[s] ?? s).join(", ")}</Detail>
+            {lead.services.length ? <Detail label="Wants">{lead.services.map((s) => SERVICE_LABEL[s] ?? s).join(", ")}</Detail> : null}
             {lead.budget ? <Detail label="Ad budget">{lead.budget}</Detail> : null}
             {lead.industry ? <Detail label="Business">{lead.industry}</Detail> : null}
             {lead.source ? <Detail label="Heard via">{lead.source}</Detail> : null}

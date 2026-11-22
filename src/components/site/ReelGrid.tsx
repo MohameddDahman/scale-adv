@@ -38,6 +38,33 @@ export function ReelGrid({
     (byCategory ? labels.categories?.[k] : labels.formats?.[k]) ?? k.charAt(0).toUpperCase() + k.slice(1);
   const visible = useMemo(() => (filter === "all" ? reels : reels.filter((r) => keyOf(r) === filter)), [reels, filter, keyOf]);
 
+  /* Phones: a swipeable slideshow with arrows and a "2 / 8" counter. Wider screens: the grid. */
+  const listRef = useRef<HTMLUListElement>(null);
+  const slideCount = visible.length + (instagram ? 1 : 0);
+  const [slide, setSlide] = useState(0);
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const measure = () => {
+      const first = el.querySelector("li");
+      const step = first ? first.getBoundingClientRect().width + 12 : el.clientWidth;
+      setSlide(Math.min(slideCount - 1, Math.round(Math.abs(el.scrollLeft) / step))); // RTL scrolls in negative numbers
+    };
+    el.scrollTo({ left: 0 });
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    return () => el.removeEventListener("scroll", measure);
+  }, [slideCount, filter]);
+  const moveTo = (i: number) => {
+    const el = listRef.current;
+    const target = el?.querySelectorAll("li")[Math.max(0, Math.min(slideCount - 1, i))];
+    if (!el || !target) return;
+    const rtl = getComputedStyle(el).direction === "rtl";
+    const offset = rtl ? el.getBoundingClientRect().right - target.getBoundingClientRect().right : target.getBoundingClientRect().left - el.getBoundingClientRect().left;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollBy({ left: rtl ? -offset + 16 : offset - 16, behavior: reduce ? "auto" : "smooth" });
+  };
+
   return (
     <>
       {filters && keys.length > 1 ? (
@@ -61,9 +88,10 @@ export function ReelGrid({
       ) : null}
 
       <ul
+        ref={listRef}
         className={cn(
-          "grid gap-3 sm:gap-4",
-          columns === "wide" ? "grid-cols-2 md:grid-cols-3 xl:grid-cols-4" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4",
+          "reel-rail grid gap-3 sm:gap-4",
+          columns === "wide" ? "md:grid-cols-3 xl:grid-cols-4" : "md:grid-cols-3 lg:grid-cols-4",
         )}
       >
         {visible.map((reel, i) => (
@@ -91,6 +119,20 @@ export function ReelGrid({
           </li>
         ) : null}
       </ul>
+
+      {slideCount > 1 ? (
+        <div className="mt-5 flex items-center justify-between gap-4 md:hidden">
+          <button type="button" className="shelf-btn" onClick={() => moveTo(slide - 1)} disabled={slide === 0} aria-label={labels.prev}>
+            <ArrowLeft className="size-5 rtl:-scale-x-100" aria-hidden />
+          </button>
+          <span className="mono-label text-smoke" dir="ltr" aria-live="polite">
+            {slide + 1} / {slideCount}
+          </span>
+          <button type="button" className="shelf-btn" onClick={() => moveTo(slide + 1)} disabled={slide >= slideCount - 1} aria-label={labels.next}>
+            <ArrowRight className="size-5 rtl:-scale-x-100" aria-hidden />
+          </button>
+        </div>
+      ) : null}
 
       <ReelViewer reels={visible} index={open} onIndex={setOpen} locale={locale} labels={labels} />
     </>

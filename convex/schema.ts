@@ -73,8 +73,13 @@ export default defineSchema({
   /* ----------------------------- Inbox ----------------------------- */
   leads: defineTable({
     name: v.string(),
+    /** The business name; may be empty for briefs from the short form. */
     company: v.string(),
     phone: v.string(),
+    /** WhatsApp number when the lead gave one (the website form defaults it to the phone). */
+    whatsapp: v.optional(v.string()),
+    /** Social profile links: Instagram, TikTok, Facebook… */
+    socials: v.optional(v.array(v.string())),
     email: v.optional(v.string()),
     city: v.optional(v.string()),
     link: v.optional(v.string()),
@@ -101,12 +106,15 @@ export default defineSchema({
     jobId: v.optional(v.id("jobs")),
     jobTitle: v.string(),
     name: v.string(),
-    email: v.string(),
+    /** Only on applications sent before the form stopped asking for it. */
+    email: v.optional(v.string()),
     phone: v.string(),
     city: v.optional(v.string()),
     experience: v.optional(v.string()),
     portfolioUrl: v.optional(v.string()),
     profileUrl: v.optional(v.string()),
+    /** Social profile links the applicant chose to add. */
+    socials: v.optional(v.array(v.string())),
     cv: v.optional(v.id("_storage")),
     cvName: v.optional(v.string()),
     cvType: v.optional(v.string()),
@@ -129,6 +137,7 @@ export default defineSchema({
     .index("by_job_stage", ["jobId", "stage"])
     .index("by_cv", ["cv"])
     .index("by_email", ["email"])
+    .index("by_phone", ["phone"])
     .searchIndex("search", { searchField: "searchText", filterFields: ["stage", "jobId"] }),
 
   notes: defineTable({

@@ -1,61 +1,84 @@
 "use client";
 
 import { ArrowLeft, ArrowRight } from "@phosphor-icons/react";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import type { PublicClient } from "@convex/lib/shape";
 import { cn, formatCompact } from "@/lib/format";
 import { fmt, tx, type Locale } from "@/lib/i18n";
 import { Media } from "./Media";
 
 const reducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+/** Runs `fn` once the opening intro has finished (straight away when there isn't one). */
+export function whenIntroDone(fn: () => void) {
+  if (document.documentElement.dataset.intro !== "play") {
+    fn();
+    return () => {};
+  }
+  const done = () => fn();
+  window.addEventListener("scale:intro-done", done, { once: true });
+  return () => window.removeEventListener("scale:intro-done", done);
+}
 
 /* ------------------------------------------------------------------ */
-/* CountUp: "518K+" counts up from zero the first time it scrolls in.  */
-/* Server-rendered with the final value, so it reads right without JS. */
+/* CountUp: "518K+" counts up from zero when the page opens (or when   */
+/* it scrolls into view). Server-rendered with the final value, so it  */
+/* reads right without JavaScript; with JavaScript it's hidden until   */
+/* it starts counting (see .count-up in globals.css).                  */
 /* ------------------------------------------------------------------ */
 
 export function CountUp({ value, className }: { value: string; className?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const [state, setState] = useState({ value, shown: value });
-  if (state.value !== value) setState({ value, shown: value });
+  const [shown, setShown] = useState(value);
 
-  useEffect(() => {
+  // Before paint, so a page opened from a link never flashes the final number first.
+  useIsoLayoutEffect(() => {
     const el = ref.current;
+    if (!el) return;
     const match = /^(\D*)(\d[\d,]*(?:\.\d+)?)(.*)$/.exec(value);
-    if (!el || !match || reducedMotion()) return;
-    // Only numbers that start below the fold count up; anything already on screen stays put.
-    if (el.getBoundingClientRect().top < window.innerHeight * 0.9) return;
+    if (!match || reducedMotion()) {
+      setShown(value);
+      el.dataset.counted = "";
+      return;
+    }
     const [, before, digits, after] = match;
     const target = Number(digits.replace(/,/g, ""));
     const decimals = (digits.split(".")[1] ?? "").length;
-    const show = (text: string) => setState({ value, shown: text });
     const at = (n: number) => `${before}${n.toFixed(decimals)}${after}`;
-    let frame = requestAnimationFrame(() => show(at(0)));
+    setShown(at(0));
+    el.dataset.counted = "";
+
+    let frame = 0;
+    let stopIntro = () => {};
+    const run = () => {
+      const start = performance.now();
+      const tick = (now: number) => {
+        const p = Math.min(1, (now - start) / 1700);
+        setShown(p < 1 ? at(target * (1 - Math.pow(1 - p, 3))) : value);
+        if (p < 1) frame = requestAnimationFrame(tick);
+      };
+      frame = requestAnimationFrame(tick);
+    };
     const io = new IntersectionObserver(
       ([entry]) => {
         if (!entry.isIntersecting) return;
         io.disconnect();
-        cancelAnimationFrame(frame);
-        const start = performance.now();
-        const tick = (now: number) => {
-          const p = Math.min(1, (now - start) / 1400);
-          show(p < 1 ? at(target * (1 - Math.pow(1 - p, 3))) : value);
-          if (p < 1) frame = requestAnimationFrame(tick);
-        };
-        frame = requestAnimationFrame(tick);
+        stopIntro = whenIntroDone(run);
       },
-      { threshold: 0.6 },
+      { threshold: 0.4 },
     );
     io.observe(el);
     return () => {
       io.disconnect();
+      stopIntro();
       cancelAnimationFrame(frame);
     };
   }, [value]);
 
   return (
-    <span ref={ref} className={className}>
-      {state.shown}
+    <span ref={ref} className={cn("count-up", className)}>
+      {shown}
     </span>
   );
 }
@@ -64,53 +87,29 @@ export function CountUp({ value, className }: { value: string; className?: strin
 /* BrandWall: the client roster as social profiles, filterable.        */
 /* ------------------------------------------------------------------ */
 
-const GROUPS: { key: string; match: RegExp }[] = [
-  { key: "fashion", match: /wear|fashion|cloth|apparel|boutique/i },
-  { key: "home", match: /home|furnish|furniture|decor|mattress/i },
-  { key: "realestate", match: /real estate|construction|propert|develop/i },
-  { key: "health", match: /supplement|health|pharma|beauty|clinic/i },
-];
-const groupOf = (c: PublicClient) => GROUPS.find((g) => g.match.test(`${c.industry.en} ${c.name.en}`))?.key ?? "other";
+/* ------------------------------------------------------------------ */
+/* BrandSlider: every brand on a strip that slides by itself, so the   */
+/* whole roster fits in one row. Pauses under a finger, the mouse or    */
+/* keyboard focus; with reduced motion it's a row you swipe instead.    */
+/* ------------------------------------------------------------------ */
 
-export function BrandWall({
+export function BrandSlider({
   clients,
   locale,
   labels,
 }: {
   clients: PublicClient[];
   locale: Locale;
-  labels: { filterLabel: string; filterAll: string; groups: Record<string, string>; followers: string; visit: string };
+  labels: { followers: string; visit: string; slider: string };
 }) {
-  const [filter, setFilter] = useState("all");
-  const groups = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const c of clients) counts.set(groupOf(c), (counts.get(groupOf(c)) ?? 0) + 1);
-    return GROUPS.filter((g) => (counts.get(g.key) ?? 0) > 0).map((g) => ({ key: g.key, count: counts.get(g.key) ?? 0 }));
-  }, [clients]);
-  const shown = filter === "all" ? clients : clients.filter((c) => groupOf(c) === filter);
-
+  // Two copies back to back: sliding by exactly one copy's width loops without a jump.
+  const loop = clients.length > 2;
+  const slides = loop ? [...clients, ...clients] : clients;
   return (
-    <div>
-      {groups.length > 1 ? (
-        <div className="flex flex-wrap gap-2" role="group" aria-label={labels.filterLabel}>
-          {[{ key: "all", count: clients.length }, ...groups].map((g) => (
-            <button
-              key={g.key}
-              type="button"
-              aria-pressed={filter === g.key}
-              onClick={() => setFilter(g.key)}
-              className="chip-toggle aria-pressed:border-chalk aria-pressed:bg-chalk aria-pressed:text-ink-950"
-            >
-              {g.key === "all" ? labels.filterAll : (labels.groups[g.key] ?? g.key)}
-              <span className="font-mono text-[0.72rem] opacity-60" dir="ltr">
-                {g.count}
-              </span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-      <ul className="brand-wall mt-8" key={filter}>
-        {shown.map((c, i) => {
+    <div className={cn("brand-marquee", !loop && "brand-marquee--still")} role="region" aria-label={labels.slider}>
+      <ul className="brand-track" style={{ "--duration": `${Math.max(28, clients.length * 4.5)}s` } as CSSProperties}>
+        {slides.map((c, i) => {
+          const copy = i >= clients.length;
           const name = tx(c.name, locale);
           const inner = (
             <>
@@ -134,13 +133,19 @@ export function BrandWall({
                   {labels.followers}
                 </span>
               ) : null}
-              {tx(c.city, locale) ? <span className="brand-city">{tx(c.city, locale)}</span> : null}
             </>
           );
           return (
-            <li key={c.id} className="brand-tile" style={{ "--i": i } as CSSProperties}>
+            <li key={`${c.id}-${copy ? "b" : "a"}`} className="brand-slide" aria-hidden={copy || undefined}>
               {c.link ? (
-                <a href={c.link} target="_blank" rel="noopener noreferrer" className="brand-card" aria-label={fmt(labels.visit, { name })}>
+                <a
+                  href={c.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="brand-card"
+                  aria-label={fmt(labels.visit, { name })}
+                  tabIndex={copy ? -1 : undefined}
+                >
                   {inner}
                 </a>
               ) : (

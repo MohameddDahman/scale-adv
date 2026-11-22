@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import { ApplyProvider } from "@/components/site/Apply";
 import { BriefProvider } from "@/components/site/Brief";
+import { Intro, INTRO_HEAD_SCRIPT } from "@/components/site/Intro";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { briefText } from "@/lib/brief-text";
@@ -53,9 +55,23 @@ export default async function LocaleLayout({ children }: LayoutProps<"/[locale]"
   const { announcement } = data.settings;
 
   return (
-    <html lang={locale} dir={dirOf(locale)} className={`${fontVariables} site`}>
+    // The head script adds data-js / data-intro before the first paint, hence suppressHydrationWarning.
+    <html lang={locale} dir={dirOf(locale)} className={`${fontVariables} site`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: INTRO_HEAD_SCRIPT }} />
+      </head>
       <body className="min-h-dvh bg-ink-950">
+        <Intro tagline={tx(data.settings.hero.eyebrow, locale)} />
         <BriefProvider locale={locale} text={briefText(d)} contactHref={localeHref(locale, "/contact")}>
+          <ApplyProvider
+            locale={locale}
+            jobs={data.openJobs}
+            acceptingOpen={data.acceptingOpen}
+            dialog={d.applyDialog}
+            t={d.apply}
+            e={d.errors}
+            careersHref={localeHref(locale, "/careers")}
+          >
           <a
             href="#main"
             className="fixed start-4 top-3 z-[60] -translate-y-24 bg-signal px-4 py-3 font-semibold text-ink-950 transition-transform focus:translate-y-0"
@@ -72,6 +88,7 @@ export default async function LocaleLayout({ children }: LayoutProps<"/[locale]"
             {children}
           </main>
           <SiteFooter locale={locale} d={d} data={data} />
+          </ApplyProvider>
         </BriefProvider>
       </body>
     </html>

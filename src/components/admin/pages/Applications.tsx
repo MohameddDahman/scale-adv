@@ -257,7 +257,7 @@ function AppsTable({
                 <Link href={`/admin/applications/${a._id}`} className="font-semibold hover:underline" onClick={(e) => e.stopPropagation()}>
                   {a.name}
                 </Link>
-                <span className="block text-[0.76rem] text-a-muted">{a.email}</span>
+                <span className="block text-[0.76rem] text-a-muted" dir="ltr">{a.email ?? a.phone}</span>
               </td>
               <td className="px-3 py-2.5 text-a-muted">{a.jobTitle}</td>
               <td className="px-3 py-2.5">
@@ -400,9 +400,11 @@ export function ApplicationDetail({ params }: { params: Promise<{ id: string }> 
               <a href={whatsappHref(a.phone, `Hi ${a.name.split(" ")[0]}, this is SCALE ADV about your application for ${a.jobTitle}.`)} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center gap-2 rounded-[4px] bg-[#25d366] px-3.5 text-[0.84rem] font-semibold text-[#0b3d1f] hover:opacity-90">
                 <WhatsappLogo className="size-4" weight="fill" aria-hidden /> WhatsApp
               </a>
-              <a href={`mailto:${a.email}?subject=${encodeURIComponent(`Your application — ${a.jobTitle}`)}`} className="inline-flex h-9 items-center gap-2 rounded-[4px] border border-a-line-strong px-3.5 text-[0.84rem] font-semibold hover:bg-a-hover">
-                <EnvelopeSimple className="size-4" aria-hidden /> Email
-              </a>
+              {a.email ? (
+                <a href={`mailto:${a.email}?subject=${encodeURIComponent(`Your application — ${a.jobTitle}`)}`} className="inline-flex h-9 items-center gap-2 rounded-[4px] border border-a-line-strong px-3.5 text-[0.84rem] font-semibold hover:bg-a-hover">
+                  <EnvelopeSimple className="size-4" aria-hidden /> Email
+                </a>
+              ) : null}
               <a href={`tel:${a.phone}`} className="inline-flex h-9 items-center gap-2 rounded-[4px] border border-a-line-strong px-3.5 text-[0.84rem] font-semibold hover:bg-a-hover">
                 <Phone className="size-4" aria-hidden /> Call
               </a>
@@ -411,8 +413,8 @@ export function ApplicationDetail({ params }: { params: Promise<{ id: string }> 
 
           <Panel title="Profile">
             <dl className="grid grid-cols-[9rem_1fr] gap-x-4 gap-y-3 text-[0.86rem]">
-              <Row label="Email">{a.email}</Row>
               <Row label="Phone"><span dir="ltr">{a.phone}</span></Row>
+              {a.email ? <Row label="Email">{a.email}</Row> : null}
               {a.city ? <Row label="City">{a.city}</Row> : null}
               {a.experience ? <Row label="Experience">{a.experience}</Row> : null}
               {a.portfolioUrl ? (
@@ -427,6 +429,17 @@ export function ApplicationDetail({ params }: { params: Promise<{ id: string }> 
                   <a href={a.profileUrl} target="_blank" rel="noopener noreferrer" className="break-all text-signal-600 hover:underline dark:text-signal">
                     {a.profileUrl.replace(/^https?:\/\//, "")}
                   </a>
+                </Row>
+              ) : null}
+              {a.socials?.length ? (
+                <Row label="Social">
+                  <span className="flex flex-col gap-1">
+                    {a.socials.map((url) => (
+                      <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="break-all text-signal-600 hover:underline dark:text-signal">
+                        {url.replace(/^https?:\/\/(www\.)?/, "")}
+                      </a>
+                    ))}
+                  </span>
                 </Row>
               ) : null}
               {a.expectedSalary ? <Row label="Expected pay">{a.expectedSalary} EGP / month</Row> : null}

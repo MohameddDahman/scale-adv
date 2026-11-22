@@ -42,7 +42,8 @@ export const DEFAULT_SETTINGS: SettingsValue = {
   stats: [
     { value: "12+", label: t("brands on our roster", "براند بنشتغل معاهم") },
     { value: "518K+", label: t("followers across our clients' pages", "متابع على صفحات عملائنا") },
-    { value: "3", label: t("services, one accountable team", "خدمات وفريق واحد مسؤول") },
+    // Left blank (and hidden) until the real total is typed in: 18000000 shows as 18M+.
+    { value: "", label: t("views across our clients' reels", "مشاهدة على ريلز عملائنا") },
   ],
   contact: {
     phone: "",

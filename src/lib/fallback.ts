@@ -17,6 +17,7 @@ import {
   mapById,
   shapeCaseStudy,
   shapeClient,
+  shapeApplyJob,
   shapeFaq,
   shapeJob,
   shapeJobSummary,
@@ -48,7 +49,12 @@ const openJobs = jobs.filter((j) => j.status === "open");
 const publishedCases = cases.filter((c) => c.published);
 
 export const fallback = {
-  layout: async () => ({ settings: await shapeSettings(DEFAULT_SETTINGS, url), openRoles: openJobs.length }),
+  layout: async () => ({
+    settings: await shapeSettings(DEFAULT_SETTINGS, url),
+    openRoles: openJobs.length,
+    openJobs: openJobs.map(shapeApplyJob),
+    acceptingOpen: DEFAULT_SETTINGS.careers.accepting,
+  }),
   home: async () => ({
     clients: await Promise.all(clients.filter((c) => c.published && c.featured).map((c) => shapeClient(c, url))),
     audience,

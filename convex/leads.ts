@@ -236,6 +236,8 @@ export const exportAll = query({
       name: l.name,
       business: l.company,
       phone: l.phone,
+      whatsapp: l.whatsapp ?? "",
+      socials: (l.socials ?? []).join(" "),
       email: l.email ?? "",
       city: l.city ?? "",
       services: l.services.join(" | "),

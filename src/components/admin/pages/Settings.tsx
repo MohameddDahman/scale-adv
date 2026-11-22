@@ -13,7 +13,7 @@ type Section = keyof SettingsValue;
 
 const TABS: { value: Section; label: string; description: string }[] = [
   { value: "hero", label: "Homepage", description: "The headline and line under it. Keep line 2 short — it's the orange one." },
-  { value: "stats", label: "Numbers", description: "Shown on the Services page. Use numbers you can stand behind." },
+  { value: "stats", label: "Numbers", description: "Shown under the homepage buttons, on the Services page and on the Agency page, counting up. Type plain numbers like 18000000 and the site shows 18M+ (180000 shows 180K+). A row with no number is hidden." },
   { value: "contact", label: "Contact", description: "Empty fields are hidden on the site." },
   { value: "social", label: "Social", description: "Full links, e.g. https://www.instagram.com/scale_adv/ — empty ones are hidden." },
   { value: "careers", label: "Careers", description: "The careers page intro, what it's like to work here, and the hiring steps." },
@@ -104,7 +104,7 @@ export function SettingsPage() {
                     checked={draft.hero.showTimeline}
                     onCheckedChange={(v) => set("hero", { ...draft.hero, showTimeline: v })}
                     label="Show the reel timeline"
-                    description="The interactive “anatomy of a reel” editor under the headline. Its frames come from your featured reels."
+                    description="The interactive “anatomy of a reel” editor, now on the Services page. Its frames come from your published reels."
                   />
                 </>
               ) : null}

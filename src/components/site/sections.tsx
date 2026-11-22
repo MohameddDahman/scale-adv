@@ -1,6 +1,6 @@
-import { ArrowRight, ArrowUpRight, Plus } from "@phosphor-icons/react/ssr";
+import { ArrowRight, ArrowUpRight, Eye, Plus, Storefront, UsersThree } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type {
   PublicCaseStudy,
   PublicClient,
@@ -12,15 +12,16 @@ import type {
   PublicTestimonial,
 } from "@convex/lib/shape";
 import { REEL_FORMATS } from "@convex/lib/validators";
-import { cn, whatsappLink } from "@/lib/format";
+import { cn, statValue, whatsappLink } from "@/lib/format";
 import { fmt, localeHref, tx, type Dictionary, type Locale } from "@/lib/i18n";
+import { ApplyLink } from "./Apply";
 import { BriefLink } from "./Brief";
 import { HeroTimeline } from "./HeroTimeline";
 import { JobRow } from "./JobRow";
 import { Media } from "./Media";
 import { Reveal } from "./Reveal";
 import { SectionHead } from "./SectionHead";
-import { BrandWall, CountUp, FormatShelf, ProcessScrub } from "./showcase";
+import { BrandSlider, CountUp, FormatShelf, ProcessScrub } from "./showcase";
 
 type Base = { locale: Locale; d: Dictionary };
 
@@ -35,12 +36,11 @@ export function Hero({
   d,
   settings,
   openRoles,
-  frames,
-}: Base & { settings: PublicSettings; openRoles: number; frames: string[] }) {
+}: Base & { settings: PublicSettings; openRoles: number }) {
   const h = settings.hero;
   const roles = openRoles === 1 ? d.hero.role : fmt(d.hero.roles, { n: openRoles });
   return (
-    <section className="relative pb-20 pt-8 md:pb-28 md:pt-14" aria-labelledby="hero-title">
+    <section className="relative pb-16 pt-8 md:pb-24 md:pt-14" aria-labelledby="hero-title">
       <div className="container-site">
         <p className="mono-label flex items-center gap-3 text-smoke">
           <span className="rec-dot" aria-hidden />
@@ -54,24 +54,52 @@ export function Hero({
           <p className="max-w-[46ch] text-[1.08rem] leading-relaxed text-smoke md:col-span-6 md:text-[1.15rem]">
             {tx(h.sub, locale)}
           </p>
-          <div className="flex flex-wrap gap-3 md:col-span-6 md:justify-end">
-            <BriefLink className="btn btn-signal">
+          {/* On phones: two full-width pills, one under the other. */}
+          <div className="hero-ctas md:col-span-6 md:justify-end">
+            <BriefLink className="btn btn-signal hero-cta">
               {d.hero.primary}
               <Arrow />
             </BriefLink>
-            <Link href={localeHref(locale, "/careers")} className="btn btn-line">
+            <ApplyLink className="btn btn-line hero-cta">
               {d.hero.secondary}
               {openRoles > 0 ? <span className="font-mono text-[0.78rem] text-signal">{roles}</span> : null}
-            </Link>
+            </ApplyLink>
           </div>
         </div>
-        {h.showTimeline ? (
-          <div className="mt-12 md:mt-16">
-            <HeroTimeline labels={d.hero.timeline} frames={frames} locale={locale} />
-          </div>
-        ) : null}
+        <HeroStats locale={locale} stats={settings.stats} />
       </div>
     </section>
+  );
+}
+
+// Most specific first: "followers across our clients' pages" also mentions clients.
+const STAT_ICONS: { match: RegExp; Icon: typeof Storefront }[] = [
+  { match: /view|مشاهد/i, Icon: Eye },
+  { match: /follower|متابع/i, Icon: UsersThree },
+  { match: /brand|client|براند|عميل/i, Icon: Storefront },
+];
+
+/** The headline numbers (Site settings → Numbers), side by side under the hero buttons, counting up as the page opens. */
+export function HeroStats({ locale, stats }: { locale: Locale; stats: PublicSettings["stats"] }) {
+  const shown = stats.filter((s) => s.value.trim());
+  if (!shown.length) return null;
+  return (
+    <dl className="hero-stats" style={{ "--n": shown.length } as CSSProperties}>
+      {shown.map((s, i) => {
+        const Icon = STAT_ICONS.find((x) => x.match.test(`${s.label.en} ${s.label.ar}`))?.Icon;
+        return (
+          <div key={i} className="hero-stat">
+            <dt className="hero-stat-label">
+              {Icon ? <Icon className="hero-stat-icon" weight="bold" aria-hidden /> : null}
+              <span>{tx(s.label, locale)}</span>
+            </dt>
+            <dd className="hero-stat-value" dir="ltr">
+              <CountUp value={statValue(s.value)} />
+            </dd>
+          </div>
+        );
+      })}
+    </dl>
   );
 }
 
@@ -103,19 +131,10 @@ export function Roster({ locale, d, clients, audience, title }: Base & { clients
             ) : undefined
           }
         />
-        <div className="mt-12">
-          <BrandWall
-            clients={clients}
-            locale={locale}
-            labels={{
-              filterLabel: d.roster.filterLabel,
-              filterAll: d.roster.filterAll,
-              groups: d.roster.groups,
-              followers: d.roster.followers,
-              visit: d.roster.visit,
-            }}
-          />
-        </div>
+      </div>
+      {/* Edge to edge, so the brands slide in from off screen. */}
+      <div className="mt-12">
+        <BrandSlider clients={clients} locale={locale} labels={{ followers: d.roster.followers, visit: d.roster.visit, slider: d.roster.slider }} />
       </div>
     </section>
   );
@@ -375,22 +394,24 @@ export function PageIntro({ tab, title, body, children }: { tab: string; title: 
 
 /* ------------------------------------------------------------------ */
 
-/** The headline numbers (Site settings → Numbers), counting up as they scroll in. */
+/** The headline numbers (Site settings → Numbers) as their own band, e.g. on the Agency page. */
 export function StatsBand({ locale, d, stats, className }: Base & { stats: PublicSettings["stats"]; className?: string }) {
-  if (!stats.length) return null;
+  if (!stats.some((s) => s.value.trim())) return null;
   return (
-    <section className={cn("border-t border-chalk/10", className)} aria-label={d.numbers.tab}>
+    <section className={cn("border-t border-chalk/10 pb-14", className)} aria-label={d.numbers.tab}>
       <div className="container-site">
-        <dl className="stats-band">
-          {stats.map((s, i) => (
-            <div key={i} className="stats-cell">
-              <dt className="order-2 max-w-[24ch] text-[0.98rem] leading-snug text-smoke">{tx(s.label, locale)}</dt>
-              <dd className="display order-1 text-[clamp(3.2rem,7.5vw,6rem)] text-chalk" dir="ltr">
-                <CountUp value={s.value} />
-              </dd>
-            </div>
-          ))}
-        </dl>
+        <HeroStats locale={locale} stats={stats} />
+      </div>
+    </section>
+  );
+}
+
+/** "Anatomy of a SCALE reel": the playable edit timeline, on the Services page. */
+export function TimelineSection({ locale, d, frames }: Base & { frames: string[] }) {
+  return (
+    <section className="border-t border-chalk/10 py-20 md:py-28" aria-label={d.hero.timeline.title}>
+      <div className="container-site">
+        <HeroTimeline labels={d.hero.timeline} frames={frames} locale={locale} />
       </div>
     </section>
   );

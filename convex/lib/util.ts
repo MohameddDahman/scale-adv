@@ -50,6 +50,17 @@ export function normalizeUrl(value: string | undefined): string | undefined {
   return isUrl(withProto) ? withProto : undefined;
 }
 
+/** Social profile links from a form: each one checked, no repeats, six at most. */
+export function normalizeSocials(values: string[] | undefined): string[] {
+  const out: string[] = [];
+  for (const raw of values ?? []) {
+    const url = normalizeUrl(raw);
+    if (url && new URL(url).hostname.includes(".") && !out.includes(url)) out.push(url.slice(0, 300));
+    if (out.length >= 6) break;
+  }
+  return out;
+}
+
 export function slugify(input: string) {
   return input
     .toLowerCase()

@@ -126,12 +126,18 @@ export const get = query({
       .withIndex("by_entity", (q) => q.eq("entity", "application").eq("entityId", a.id))
       .collect();
     const cvUrl = app.cv ? await ctx.storage.getUrl(app.cv) : null;
-    const others = (
-      await ctx.db
-        .query("applications")
-        .withIndex("by_email", (q) => q.eq("email", app.email))
-        .take(10)
-    ).filter((x) => x._id !== app._id);
+    // The same person's other applications: matched by phone, and by email on older ones that have it.
+    const samePhone = await ctx.db
+      .query("applications")
+      .withIndex("by_phone", (q) => q.eq("phone", app.phone))
+      .take(10);
+    const sameEmail = app.email
+      ? await ctx.db
+          .query("applications")
+          .withIndex("by_email", (q) => q.eq("email", app.email))
+          .take(10)
+      : [];
+    const others = [...new Map([...samePhone, ...sameEmail].map((x) => [x._id, x])).values()].filter((x) => x._id !== app._id);
     return {
       application: app,
       job: job ? { _id: job._id, title: job.title, slug: job.slug, questions: job.questions, status: job.status } : null,
@@ -278,12 +284,13 @@ export const exportAll = query({
         stage: STAGE_LABEL[r.stage],
         rating: r.rating ?? "",
         name: r.name,
-        email: r.email,
         phone: r.phone,
+        email: r.email ?? "",
         city: r.city ?? "",
         experience: r.experience ?? "",
         portfolio: r.portfolioUrl ?? "",
         profile: r.profileUrl ?? "",
+        socials: (r.socials ?? []).join(" "),
         cv: r.cv ? ((await ctx.storage.getUrl(r.cv)) ?? "") : "",
         expected_salary: r.expectedSalary ?? "",
         start_date: r.startDate ?? "",
