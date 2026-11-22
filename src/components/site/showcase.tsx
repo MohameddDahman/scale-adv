@@ -3,8 +3,8 @@
 import { ArrowLeft, ArrowRight } from "@phosphor-icons/react";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import type { PublicClient } from "@convex/lib/shape";
-import { cn, formatCompact, shortDown } from "@/lib/format";
-import { fmt, tx, type Locale } from "@/lib/i18n";
+import { cn, shortDown } from "@/lib/format";
+import { tx, type Locale } from "@/lib/i18n";
 import { Media } from "./Media";
 
 const reducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -47,7 +47,7 @@ export function CountUp({ value, className }: { value: string; className?: strin
     const [, before, digits, after] = match;
     const number = Number(digits.replace(/,/g, ""));
     // "1.8M+" counts the real number, 0 → 1,800,000, shown short all the way: 950+, 420K+, 1.2M+, 1.8M+.
-    const unit = /^[KMB]/i.exec(after)?.[0].toUpperCase();
+    const unit = /^[KMB](?![a-z])/i.exec(after)?.[0].toUpperCase();
     const scale = unit ? UNIT[unit] : 1;
     const target = number * scale;
     const rest = unit ? after.slice(1) : after;
@@ -91,77 +91,193 @@ export function CountUp({ value, className }: { value: string; className?: strin
 }
 
 /* ------------------------------------------------------------------ */
-/* BrandWall: the client roster as social profiles, filterable.        */
+/* LogoMarquee: the brands' logos in one row that slides by itself.    */
+/* Drag or swipe to move it, arrows on wider screens. Stops under the  */
+/* mouse, on keyboard focus and off screen; with reduced motion it     */
+/* only moves when someone drags it or uses the arrows.                */
 /* ------------------------------------------------------------------ */
 
-/* ------------------------------------------------------------------ */
-/* BrandSlider: every brand on a strip that slides by itself, so the   */
-/* whole roster fits in one row. Pauses under a finger, the mouse or    */
-/* keyboard focus; with reduced motion it's a row you swipe instead.    */
-/* ------------------------------------------------------------------ */
+/** Sliding speed, in pixels a second. */
+const LOGO_SPEED = 45;
 
-export function BrandSlider({
+export function LogoMarquee({
   clients,
   locale,
+  caption,
   labels,
 }: {
   clients: PublicClient[];
   locale: Locale;
-  labels: { followers: string; visit: string; slider: string };
+  /** Small line above the logos (the hero). Sections with their own heading leave it out. */
+  caption?: string;
+  labels: { region: string; prev: string; next: string };
 }) {
-  // Two copies back to back: sliding by exactly one copy's width loops without a jump.
-  const loop = clients.length > 2;
-  const slides = loop ? [...clients, ...clients] : clients;
+  const rootRef = useRef<HTMLDivElement>(null);
+  const windowRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const setRef = useRef<HTMLUListElement>(null);
+  const nudgeRef = useRef<(towards: number) => void>(() => {});
+  const [copies, setCopies] = useState(2);
+  const moving = clients.length > 3;
+  // Logos travel toward where reading starts: to the left in English, to the right in Arabic.
+  const flow = locale === "ar" ? 1 : -1;
+
+  useEffect(() => {
+    const root = rootRef.current;
+    const win = windowRef.current;
+    const track = trackRef.current;
+    const set = setRef.current;
+    if (!moving || !root || !win || !track || !set) return;
+    const still = reducedMotion();
+    let width = 0; // one set of logos, its trailing gap included
+    let pos = 0; // keeps counting; shown modulo one set, so the loop never jumps
+    let last = 0;
+    let frame = 0;
+    let hover = false;
+    let focused = false;
+    let drag: { id: number; x: number } | null = null;
+    let tween: { from: number; to: number; start: number; dur: number } | null = null;
+
+    const paint = () => {
+      const x = width ? -(((-pos % width) + width) % width) : 0;
+      track.style.transform = `translate3d(${x}px,0,0)`;
+    };
+    const tick = (now: number) => {
+      const dt = last ? Math.min(64, now - last) : 0;
+      last = now;
+      if (tween) {
+        const p = tween.dur ? Math.min(1, (now - tween.start) / tween.dur) : 1;
+        pos = tween.from + (tween.to - tween.from) * (1 - Math.pow(1 - p, 3));
+        if (p >= 1) tween = null;
+      } else if (!still && !hover && !focused && !drag) {
+        pos += (flow * LOGO_SPEED * dt) / 1000;
+      }
+      paint();
+      frame = requestAnimationFrame(tick);
+    };
+    const run = () => {
+      if (frame) return;
+      last = 0;
+      frame = requestAnimationFrame(tick);
+    };
+    const halt = () => {
+      cancelAnimationFrame(frame);
+      frame = 0;
+    };
+
+    const measure = () => {
+      width = set.getBoundingClientRect().width;
+      // Enough copies to cover the window while one copy slides out of view.
+      const need = Math.max(2, Math.ceil(win.clientWidth / Math.max(width, 1)) + 1);
+      setCopies((c) => (c === need ? c : need));
+      paint();
+    };
+    const resize = new ResizeObserver(measure);
+    resize.observe(set);
+    resize.observe(win);
+    measure();
+    const seen = new IntersectionObserver(([entry]) => (entry.isIntersecting ? run() : halt()));
+    seen.observe(win);
+
+    const down = (e: PointerEvent) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      drag = { id: e.pointerId, x: e.clientX };
+      tween = null;
+      if (e.pointerType === "mouse") win.setPointerCapture(e.pointerId);
+    };
+    const move = (e: PointerEvent) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      pos += e.clientX - drag.x;
+      drag.x = e.clientX;
+    };
+    const up = (e: PointerEvent) => {
+      if (drag && e.pointerId === drag.id) drag = null;
+    };
+    const enter = (e: PointerEvent) => {
+      if (e.pointerType === "mouse") hover = true;
+    };
+    const leave = (e: PointerEvent) => {
+      if (e.pointerType === "mouse") hover = false;
+    };
+    const focusIn = () => {
+      focused = true;
+    };
+    const focusOut = (e: FocusEvent) => {
+      if (!root.contains(e.relatedTarget as Node | null)) focused = false;
+    };
+    win.addEventListener("pointerdown", down);
+    win.addEventListener("pointermove", move);
+    win.addEventListener("pointerup", up);
+    win.addEventListener("pointercancel", up);
+    win.addEventListener("pointerenter", enter);
+    win.addEventListener("pointerleave", leave);
+    root.addEventListener("focusin", focusIn);
+    root.addEventListener("focusout", focusOut);
+
+    nudgeRef.current = (towards) => {
+      tween = { from: pos, to: pos + towards * win.clientWidth * 0.6, start: performance.now(), dur: still ? 0 : 520 };
+      run();
+    };
+
+    return () => {
+      halt();
+      resize.disconnect();
+      seen.disconnect();
+      win.removeEventListener("pointerdown", down);
+      win.removeEventListener("pointermove", move);
+      win.removeEventListener("pointerup", up);
+      win.removeEventListener("pointercancel", up);
+      win.removeEventListener("pointerenter", enter);
+      win.removeEventListener("pointerleave", leave);
+      root.removeEventListener("focusin", focusIn);
+      root.removeEventListener("focusout", focusOut);
+      nudgeRef.current = () => {};
+    };
+  }, [moving, flow]);
+
+  if (!clients.length) return null;
+  const logos = (hidden: boolean) =>
+    clients.map((c) => {
+      const name = tx(c.name, locale);
+      return (
+        <li key={c.id} className="logo-tile">
+          {c.logo ? (
+            <Media src={c.logo} alt={hidden ? "" : name} sizes="64px" className="object-cover" eager />
+          ) : (
+            <span className="logo-initial" aria-hidden>
+              {name.slice(0, 1)}
+            </span>
+          )}
+          {!c.logo && !hidden ? <span className="sr-only">{name}</span> : null}
+        </li>
+      );
+    });
+
   return (
-    <div className={cn("brand-marquee", !loop && "brand-marquee--still")} role="region" aria-label={labels.slider}>
-      <ul className="brand-track" style={{ "--duration": `${Math.max(28, clients.length * 4.5)}s` } as CSSProperties}>
-        {slides.map((c, i) => {
-          const copy = i >= clients.length;
-          const name = tx(c.name, locale);
-          const inner = (
-            <>
-              <span className="brand-avatar">
-                <span className="brand-ring" aria-hidden />
-                <span className="brand-logo">
-                  {c.logo ? (
-                    <Media src={c.logo} alt="" sizes="96px" className="object-cover" />
-                  ) : (
-                    <span className="heading grid size-full place-items-center text-3xl text-chalk">{name.slice(0, 1)}</span>
-                  )}
-                </span>
-              </span>
-              <span className="brand-name">{name}</span>
-              <span className="brand-meta">{tx(c.industry, locale)}</span>
-              {c.followers ? (
-                <span className="brand-followers">
-                  <span className="text-chalk" dir="ltr">
-                    {formatCompact(c.followers, locale)}
-                  </span>{" "}
-                  {labels.followers}
-                </span>
-              ) : null}
-            </>
-          );
-          return (
-            <li key={`${c.id}-${copy ? "b" : "a"}`} className="brand-slide" aria-hidden={copy || undefined}>
-              {c.link ? (
-                <a
-                  href={c.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="brand-card"
-                  aria-label={fmt(labels.visit, { name })}
-                  tabIndex={copy ? -1 : undefined}
-                >
-                  {inner}
-                </a>
-              ) : (
-                <div className="brand-card">{inner}</div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+    <div ref={rootRef} className={cn("logo-strip", !caption && "logo-strip--plain")} role="group" aria-label={labels.region}>
+      {caption ? <p className="logo-strip-caption">{caption}</p> : null}
+      <div className={cn("logo-marquee", !moving && "logo-marquee--still")}>
+        {moving ? (
+          <button type="button" className="logo-marquee-btn" onClick={() => nudgeRef.current(-flow)} aria-label={labels.prev}>
+            <ArrowLeft className="size-4 rtl:-scale-x-100" weight="bold" aria-hidden />
+          </button>
+        ) : null}
+        {/* Left to right inside, in Arabic too: the sliding maths assume the row starts at the left edge. */}
+        <div ref={windowRef} className="logo-marquee-window" dir="ltr">
+          <div ref={trackRef} className="logo-marquee-track">
+            {Array.from({ length: moving ? copies : 1 }, (_, k) => (
+              <ul key={k} ref={k === 0 ? setRef : undefined} className="logo-set" aria-hidden={k > 0 || undefined}>
+                {logos(k > 0)}
+              </ul>
+            ))}
+          </div>
+        </div>
+        {moving ? (
+          <button type="button" className="logo-marquee-btn" onClick={() => nudgeRef.current(flow)} aria-label={labels.next}>
+            <ArrowRight className="size-4 rtl:-scale-x-100" weight="bold" aria-hidden />
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

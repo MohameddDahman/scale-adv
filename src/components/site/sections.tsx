@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight, Eye, Plus, Storefront, UsersThree } from "@phosphor-icons/react/ssr";
+import { ArrowRight, ArrowUpRight, ChartLineUp, Eye, Plus, Storefront, TrendUp, UsersThree } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import type {
@@ -21,7 +21,7 @@ import { JobRow } from "./JobRow";
 import { Media } from "./Media";
 import { Reveal } from "./Reveal";
 import { SectionHead } from "./SectionHead";
-import { BrandSlider, CountUp, FormatShelf, ProcessScrub } from "./showcase";
+import { CountUp, FormatShelf, LogoMarquee, ProcessScrub } from "./showcase";
 
 type Base = { locale: Locale; d: Dictionary };
 
@@ -36,7 +36,8 @@ export function Hero({
   d,
   settings,
   openRoles,
-}: Base & { settings: PublicSettings; openRoles: number }) {
+  clients,
+}: Base & { settings: PublicSettings; openRoles: number; clients: PublicClient[] }) {
   const h = settings.hero;
   const roles = openRoles === 1 ? d.hero.role : fmt(d.hero.roles, { n: openRoles });
   return (
@@ -67,15 +68,24 @@ export function Hero({
           </div>
         </div>
         <HeroStats locale={locale} stats={settings.stats} />
+        {/* The brands' logos sliding along the foot of the hero. */}
+        <LogoMarquee
+          clients={clients}
+          locale={locale}
+          caption={d.roster.strip}
+          labels={{ region: d.roster.slider, prev: d.roster.prev, next: d.roster.next }}
+        />
       </div>
     </section>
   );
 }
 
 // Most specific first: "followers across our clients' pages" also mentions clients.
+// Anything else (a new number typed in the dashboard) gets the chart.
 const STAT_ICONS: { match: RegExp; Icon: typeof Storefront }[] = [
   { match: /view|مشاهد/i, Icon: Eye },
   { match: /follower|متابع/i, Icon: UsersThree },
+  { match: /roas|return|sales|عائد|مبيعات/i, Icon: TrendUp },
   { match: /brand|client|براند|عميل/i, Icon: Storefront },
 ];
 
@@ -86,11 +96,11 @@ export function HeroStats({ locale, stats }: { locale: Locale; stats: PublicSett
   return (
     <dl className="hero-stats" style={{ "--n": shown.length } as CSSProperties}>
       {shown.map((s, i) => {
-        const Icon = STAT_ICONS.find((x) => x.match.test(`${s.label.en} ${s.label.ar}`))?.Icon;
+        const Icon = STAT_ICONS.find((x) => x.match.test(`${s.label.en} ${s.label.ar}`))?.Icon ?? ChartLineUp;
         return (
           <div key={i} className="hero-stat">
             <dt className="hero-stat-label">
-              {Icon ? <Icon className="hero-stat-icon" weight="bold" aria-hidden /> : null}
+              <Icon className="hero-stat-icon" weight="bold" aria-hidden />
               <span>{tx(s.label, locale)}</span>
             </dt>
             <dd className="hero-stat-value" dir="ltr">
@@ -132,9 +142,8 @@ export function Roster({ locale, d, clients, audience, title }: Base & { clients
           }
         />
       </div>
-      {/* Edge to edge, so the brands slide in from off screen. */}
-      <div className="mt-12">
-        <BrandSlider clients={clients} locale={locale} labels={{ followers: d.roster.followers, visit: d.roster.visit, slider: d.roster.slider }} />
+      <div className="container-site mt-12">
+        <LogoMarquee clients={clients} locale={locale} labels={{ region: d.roster.slider, prev: d.roster.prev, next: d.roster.next }} />
       </div>
     </section>
   );

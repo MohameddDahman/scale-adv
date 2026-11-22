@@ -13,6 +13,7 @@ export function Media({
   sizes,
   className,
   priority,
+  eager,
 }: {
   src: string;
   alt: string;
@@ -20,7 +21,10 @@ export function Media({
   className?: string;
   /** Above the fold: load right away instead of lazily. */
   priority?: boolean;
+  /** Load right away, at normal priority (small images that slide into view). */
+  eager?: boolean;
 }) {
+  const loading = priority || eager ? "eager" : "lazy";
   if (canOptimize(src)) {
     return (
       <Image
@@ -29,7 +33,7 @@ export function Media({
         fill
         sizes={sizes}
         className={className}
-        loading={priority ? "eager" : "lazy"}
+        loading={loading}
         fetchPriority={priority ? "high" : undefined}
       />
     );
@@ -40,7 +44,7 @@ export function Media({
       src={src}
       alt={alt}
       className={cn("absolute inset-0 size-full", className)}
-      loading={priority ? "eager" : "lazy"}
+      loading={loading}
       fetchPriority={priority ? "high" : undefined}
       decoding="async"
     />

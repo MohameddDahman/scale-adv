@@ -7,7 +7,6 @@ import {
   FormatsSection,
   Hero,
   ProcessSection,
-  Roster,
   ServicesTriad,
   Testimonials,
   WhySection,
@@ -39,8 +38,7 @@ export default async function HomePage() {
           address: { "@type": "PostalAddress", addressCountry: "EG" },
         }}
       />
-      <Hero locale={locale} d={d} settings={settings} openRoles={layout.openRoles} />
-      <Roster locale={locale} d={d} clients={home.clients} audience={home.audience} />
+      <Hero locale={locale} d={d} settings={settings} openRoles={layout.openRoles} clients={home.clients} />
       <ServicesTriad locale={locale} d={d} services={home.services} />
       <ProcessSection locale={locale} d={d} />
       <FormatsSection locale={locale} d={d} reels={home.reels} />
