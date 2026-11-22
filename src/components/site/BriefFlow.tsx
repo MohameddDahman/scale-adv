@@ -9,20 +9,23 @@ import { fmt, type Dictionary, type Locale } from "@/lib/i18n";
 
 /**
  * "Become our client": one short question per screen, like a chat, so it's
- * easy on a phone. Brand, name, phone, WhatsApp, social links, and an
- * optional note. Shown as a bottom sheet on phones (see Brief.tsx) and inline
+ * easy on a phone. What matters most (quality or speed), brand, name, phone,
+ * WhatsApp, social links, and an optional note. Shown as a bottom sheet on phones (see Brief.tsx) and inline
  * on the contact page.
  */
 
 export type BriefText = { b: Dictionary["brief"]; e: Dictionary["errors"] };
 
-const STEPS = ["brand", "name", "phone", "whatsapp", "socials", "about"] as const;
+const STEPS = ["priority", "brand", "name", "phone", "whatsapp", "socials", "about"] as const;
 type Step = (typeof STEPS)[number];
 const NETWORKS = ["instagram", "tiktok", "facebook"] as const;
 type Network = (typeof NETWORKS)[number];
+const PRIORITIES = ["quality", "speed"] as const;
+type Priority = (typeof PRIORITIES)[number];
 
 type Draft = {
   step: number;
+  priority: Priority | "";
   company: string;
   name: string;
   phone: string;
@@ -36,6 +39,7 @@ type Draft = {
 
 const EMPTY: Draft = {
   step: 0,
+  priority: "",
   company: "",
   name: "",
   phone: "",
@@ -49,7 +53,7 @@ const EMPTY: Draft = {
 
 /* ----------------- Draft: kept for the visit, so closing loses nothing ----------------- */
 
-const KEY = "scale.brief.v2";
+const KEY = "scale.brief.v3";
 let cache: Draft | null = null;
 const listeners = new Set<() => void>();
 
@@ -61,6 +65,7 @@ function sanitize(raw: unknown): Draft {
     const value = r[key];
     if (key === "step") out.step = typeof value === "number" ? Math.min(Math.max(Math.floor(value), 0), STEPS.length - 1) : 0;
     else if (key === "sameWhatsapp") out.sameWhatsapp = typeof value === "boolean" ? value : true;
+    else if (key === "priority") out.priority = PRIORITIES.find((p) => p === value) ?? "";
     else out[key] = typeof value === "string" ? value.slice(0, 2000) : "";
   }
   return out;
@@ -183,6 +188,7 @@ export function BriefFlow({
   }, [phase, mode]);
 
   function check(s: Step, d: Draft): { field: string; message: string } | null {
+    if (s === "priority" && !d.priority) return { field: "priority", message: e.pickOne };
     if (s === "brand" && !d.company.trim()) return { field: "brand", message: e.required };
     if (s === "name" && !d.name.trim()) return { field: "name", message: e.required };
     if (s === "phone") {
@@ -240,6 +246,7 @@ export function BriefFlow({
     const socials = NETWORKS.map((n) => profileLink(n, draft[n])).filter((x): x is string => !!x);
     try {
       const result = await client.mutation(api.forms.submitLead, {
+        priority: draft.priority || undefined,
         name: draft.name.trim(),
         company: draft.company.trim(),
         phone: draft.phone.trim(),
@@ -294,7 +301,44 @@ export function BriefFlow({
 
   const q = b.steps[step];
   let body: ReactNode;
-  if (step === "brand") {
+  if (step === "priority") {
+    const p = b.steps.priority;
+    const focusable = draft.priority || PRIORITIES[0];
+    body = (
+      <div
+        role="radiogroup"
+        aria-labelledby={`${uid}-q`}
+        aria-describedby={error?.field === "priority" ? `${uid}-error` : undefined}
+        className="bf-options"
+      >
+        {PRIORITIES.map((value) => (
+          <label key={value} className="bf-option" data-on={draft.priority === value || undefined}>
+            <input
+              id={value === focusable ? `${uid}-priority` : undefined}
+              type="radio"
+              name={`${uid}-priority`}
+              value={value}
+              className="sr-only"
+              checked={draft.priority === value}
+              aria-invalid={error?.field === "priority" ? true : undefined}
+              onChange={() => {
+                set({ priority: value });
+                setError(null);
+              }}
+            />
+            <span className="bf-option-dot" aria-hidden />
+            <span className="bf-option-body">
+              <span className="bf-option-title">
+                {p[value].title}
+                {value === "quality" ? <span className="bf-option-badge">{p.recommended}</span> : null}
+              </span>
+              <span className="bf-option-text">{p[value].text}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+    );
+  } else if (step === "brand") {
     body = (
       <input
         {...input("brand")}

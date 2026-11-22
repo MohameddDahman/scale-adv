@@ -3,16 +3,18 @@
 import { ArrowLeft, ArrowRight } from "@phosphor-icons/react";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import type { PublicClient } from "@convex/lib/shape";
-import { cn, formatCompact } from "@/lib/format";
+import { cn, formatCompact, shortDown } from "@/lib/format";
 import { fmt, tx, type Locale } from "@/lib/i18n";
 import { Media } from "./Media";
 
 const reducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const UNIT: Record<string, number> = { K: 1_000, M: 1_000_000, B: 1_000_000_000 };
 const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 /** Runs `fn` once the opening intro has finished (straight away when there isn't one). */
 export function whenIntroDone(fn: () => void) {
-  if (document.documentElement.dataset.intro !== "play") {
+  const intro = document.documentElement.dataset.intro;
+  if (intro !== "play" && intro !== "calm") {
     fn();
     return () => {};
   }
@@ -43,9 +45,14 @@ export function CountUp({ value, className }: { value: string; className?: strin
       return;
     }
     const [, before, digits, after] = match;
-    const target = Number(digits.replace(/,/g, ""));
+    const number = Number(digits.replace(/,/g, ""));
+    // "1.8M+" counts the real number, 0 → 1,800,000, shown short all the way: 950+, 420K+, 1.2M+, 1.8M+.
+    const unit = /^[KMB]/i.exec(after)?.[0].toUpperCase();
+    const scale = unit ? UNIT[unit] : 1;
+    const target = number * scale;
+    const rest = unit ? after.slice(1) : after;
     const decimals = (digits.split(".")[1] ?? "").length;
-    const at = (n: number) => `${before}${n.toFixed(decimals)}${after}`;
+    const at = (n: number) => (unit ? `${before}${shortDown(n)}${rest}` : `${before}${n.toFixed(decimals)}${after}`);
     setShown(at(0));
     el.dataset.counted = "";
 

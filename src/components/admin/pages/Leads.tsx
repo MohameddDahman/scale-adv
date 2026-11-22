@@ -427,6 +427,9 @@ function LeadSheet({ id, onClose }: { id: string | null; onClose: () => void }) 
 
           <dl className="grid grid-cols-[8rem_1fr] gap-x-4 gap-y-2.5 rounded-[6px] border border-a-line p-4 text-[0.84rem]">
             <Detail label="Contact">{lead.name}</Detail>
+            {lead.priority ? (
+              <Detail label="Matters most">{lead.priority === "quality" ? "Quality that sells" : "Faster delivery"}</Detail>
+            ) : null}
             <Detail label="Phone"><span dir="ltr">{lead.phone}</span></Detail>
             {lead.whatsapp && lead.whatsapp !== lead.phone ? (
               <Detail label="WhatsApp"><span dir="ltr">{lead.whatsapp}</span></Detail>

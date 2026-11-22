@@ -5,6 +5,7 @@ import { Dialog } from "radix-ui";
 import { createContext, useContext, useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import type { Locale } from "@/lib/i18n";
 import { BriefFlow, type BriefText } from "./BriefFlow";
+import { KeyboardInset } from "./KeyboardInset";
 
 type BriefApi = { open: () => void; contactHref: string };
 const BriefContext = createContext<BriefApi | null>(null);
@@ -33,6 +34,7 @@ export function BriefProvider({
           <Dialog.Content className="brief-dialog" onOpenAutoFocus={(ev) => ev.preventDefault()}>
             <Dialog.Title className="sr-only">{text.b.title}</Dialog.Title>
             <Dialog.Description className="sr-only">{text.b.description}</Dialog.Description>
+            <KeyboardInset />
             <BriefFlow locale={locale} text={text} mode="dialog" autoFocus onClose={() => setOpen(false)} />
           </Dialog.Content>
         </Dialog.Portal>

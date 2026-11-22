@@ -26,6 +26,11 @@ export const vLeadStatus = v.union(
   v.literal("lost"),
 );
 
+/** "Become our client", first question: what matters most for their content. */
+export const LEAD_PRIORITIES = ["quality", "speed"] as const;
+export type LeadPriority = (typeof LEAD_PRIORITIES)[number];
+export const vLeadPriority = v.union(v.literal("quality"), v.literal("speed"));
+
 export const APP_STAGES = ["new", "screening", "interview", "offer", "hired", "rejected"] as const;
 export type AppStage = (typeof APP_STAGES)[number];
 export const vAppStage = v.union(

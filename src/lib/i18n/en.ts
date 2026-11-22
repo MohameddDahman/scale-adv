@@ -344,11 +344,19 @@ const en = {
   brief: {
     title: "Become our client",
     sub: "Tell us about your brand and our team will get back to you on WhatsApp.",
-    description: "Six quick questions about your brand. Our team gets back to you on WhatsApp.",
+    description: "Seven quick questions about your brand. Our team gets back to you on WhatsApp.",
     close: "Close",
     stepOf: "Question {n} of {total}: {title}",
     optional: "optional",
     steps: {
+      priority: {
+        title: "What matters most for your brand's content?",
+        hint: "Pick one and we'll shape the plan around it.",
+        placeholder: "",
+        recommended: "Recommended",
+        quality: { title: "Quality that sells", text: "Real research, sharp scripts and polished production, made to bring results." },
+        speed: { title: "Faster delivery", text: "A quicker turnaround, with lighter planning up front." },
+      },
       brand: { title: "What's your brand name?", hint: "", placeholder: "Your brand or business name" },
       name: { title: "What's your name?", hint: "", placeholder: "Your full name" },
       phone: { title: "Your phone number", hint: "", placeholder: "" },
@@ -390,6 +398,7 @@ const en = {
     url: "Enter a valid link, starting with https://",
     services: "Pick at least one service.",
     socials: "Add at least one link: Instagram, TikTok or Facebook.",
+    pickOne: "Pick one to continue.",
     socialLink: "That doesn't look like a link or a username.",
     fileType: "Upload a PDF, Word document or image.",
     fileSize: "The file is larger than 5 MB.",

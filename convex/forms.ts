@@ -10,6 +10,7 @@ import { logActivity } from "./lib/activity";
 import { hitLimit } from "./lib/rateLimit";
 import { CV_TYPES, MAX_CV_BYTES } from "./lib/storage";
 import { clean, fail, isEmail, isUrl, normalizePhone, normalizeSocials, normalizeUrl, requireText } from "./lib/util";
+import { vLeadPriority } from "./lib/validators";
 import { loadSettings } from "./site";
 
 const LEAD_SERVICES = ["content", "production", "media_buying", "full"];
@@ -27,12 +28,13 @@ const looksLikeBot = (honeypot?: string, elapsedMs?: number) =>
   !!honeypot || (elapsedMs !== undefined && elapsedMs < 2500);
 
 /**
- * "Become our client": the short form asks for a name, phone, WhatsApp and
- * social links. Business name, services and the rest are optional, so older
- * pages and the dashboard can still send them.
+ * "Become our client": the short form asks what matters most (quality or
+ * speed), then for a name, phone, WhatsApp and social links. Business name,
+ * services and the rest are optional, so older pages can still send them.
  */
 export const submitLead = mutation({
   args: {
+    priority: v.optional(vLeadPriority),
     name: v.string(),
     company: v.optional(v.string()),
     phone: v.string(),
@@ -75,6 +77,7 @@ export const submitLead = mutation({
       phone,
       whatsapp,
       socials: socials.length ? socials : undefined,
+      priority: a.priority,
       email,
       city: clean(a.city, 80),
       link: normalizeUrl(a.link),

@@ -235,6 +235,7 @@ export const exportAll = query({
       status: STATUS_LABEL[l.status],
       name: l.name,
       business: l.company,
+      priority: l.priority === "quality" ? "Quality" : l.priority === "speed" ? "Faster delivery" : "",
       phone: l.phone,
       whatsapp: l.whatsapp ?? "",
       socials: (l.socials ?? []).join(" "),

@@ -7,6 +7,7 @@ import type { PublicApplyJob } from "@convex/lib/shape";
 import { cn } from "@/lib/format";
 import { tx, type Dictionary, type Locale } from "@/lib/i18n";
 import { ApplicationForm } from "./ApplicationForm";
+import { KeyboardInset } from "./KeyboardInset";
 
 type ApplyApi = { open: () => void; careersHref: string };
 const ApplyContext = createContext<ApplyApi | null>(null);
@@ -69,6 +70,7 @@ export function ApplyProvider({
           >
             <Dialog.Title className="sr-only">{dialog.title}</Dialog.Title>
             <Dialog.Description className="sr-only">{dialog.sub}</Dialog.Description>
+            <KeyboardInset />
             <div className="bf bf--dialog">
               <div className="bf-head">
                 <div className="min-w-0">

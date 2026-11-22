@@ -2,15 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 
+/** How long the full mark holds before it flies into the nav, counted from when the intro first shows. */
+const HOLD = 1900;
+/** With "reduce motion" on: how long the still frame stays before it dissolves. */
+const CALM_HOLD = 1300;
+
 /**
  * The opening: a black camera frame starts rolling (REC, running timecode),
  * SCALE lands letter by letter, the orange ADV tab wipes in, then the whole
  * mark flies into its place in the nav while the black lifts like a curtain.
  *
- * Plays once per visit (sessionStorage), never under reduced motion, and any
- * scroll, tap or key skips straight to the landing. The script in the page
- * <head> decides before the first paint whether it plays (html[data-intro]),
- * and the CSS fades it out on its own if this component never runs.
+ * Plays every time the site is opened or refreshed, but not on Back/Forward.
+ * With "reduce motion" on, nothing moves: the frame and the mark simply show,
+ * then dissolve. Any scroll, tap or key skips to the end. The script in the
+ * page <head> decides before the first paint (html[data-intro]), and the CSS
+ * fades the intro out on its own if this component never runs.
  */
 export function Intro({ tagline }: { tagline: string }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -22,36 +28,49 @@ export function Intro({ tagline }: { tagline: string }) {
     const html = document.documentElement;
     const root = rootRef.current;
     const mark = markRef.current;
-    if (html.dataset.intro !== "play" || !root || !mark) {
+    const mode = html.dataset.intro;
+    if ((mode !== "play" && mode !== "calm") || !root || !mark) {
       setGone(true);
       return;
     }
-    root.dataset.js = "";
-    try {
-      sessionStorage.setItem("scale.intro", "1");
-    } catch {
-      // Storage blocked: it may play again on the next page, which is harmless.
-    }
+    const calm = mode === "calm";
 
-    // The camera's timecode, running at 25 frames a second.
-    const started = performance.now();
-    let frame = requestAnimationFrame(function tick(now) {
-      const t = (now - started) / 1000;
-      const pad = (n: number) => String(n).padStart(2, "0");
-      if (timecodeRef.current) timecodeRef.current.textContent = `00:00:${pad(Math.floor(t) % 60)}:${pad(Math.floor((t % 1) * 25))}`;
-      frame = requestAnimationFrame(tick);
-    });
-
-    const timers: number[] = [];
-    let flying = false;
     const finish = () => {
       html.dataset.intro = "done";
       window.dispatchEvent(new Event("scale:intro-done"));
       setGone(true);
     };
+
+    // When the intro first showed: its CSS animations started then. Timing from
+    // there (not from page load) means a slow phone still sees the whole thing.
+    const startTimes = (root.getAnimations?.({ subtree: true }) ?? [])
+      .map((a) => a.startTime)
+      .filter((t): t is number => typeof t === "number");
+    const shownAt = startTimes.length ? Math.min(...startTimes) : null;
+
+    // JavaScript arrived so late that the CSS has already faded the intro out by itself.
+    if (shownAt !== null && performance.now() - shownAt > HOLD + 1000) {
+      finish();
+      return;
+    }
+    root.dataset.js = ""; // from here on this component runs it (the CSS fallback stands down)
+
+    const timers: number[] = [];
+    let zero = 0;
+    let frame = 0;
+    let leaving = false;
+
+    // The camera's timecode, running at 25 frames a second.
+    const tick = (now: number) => {
+      const t = Math.max(0, now - zero) / 1000;
+      const pad = (n: number) => String(n).padStart(2, "0");
+      if (timecodeRef.current) timecodeRef.current.textContent = `00:00:${pad(Math.floor(t) % 60)}:${pad(Math.floor((t % 1) * 25))}`;
+      frame = requestAnimationFrame(tick);
+    };
+
     const fly = () => {
-      if (flying) return;
-      flying = true;
+      if (leaving) return;
+      leaving = true;
       const target = document.querySelector<HTMLElement>("[data-site-logo] [data-wordmark-row]");
       const from = mark.getBoundingClientRect();
       if (target && from.width) {
@@ -70,10 +89,24 @@ export function Intro({ tagline }: { tagline: string }) {
         window.setTimeout(finish, 980),
       );
     };
+    const dissolve = () => {
+      if (leaving) return;
+      leaving = true;
+      root.dataset.phase = "fade";
+      timers.push(window.setTimeout(finish, 520));
+    };
+    const leave = calm ? dissolve : fly;
+    const begin = (from: number) => {
+      zero = from;
+      if (!calm) frame = requestAnimationFrame(tick);
+      timers.push(window.setTimeout(leave, Math.max(180, zero + (calm ? CALM_HOLD : HOLD) - performance.now())));
+    };
+    // Nothing drawn yet (this ran before the first paint, or the page opened in a
+    // background tab): the intro starts on the next frame, so count from that one.
+    if (shownAt !== null) begin(shownAt);
+    else frame = requestAnimationFrame(begin);
 
-    // Fly about 1.4s after the page first painted, however long the script took to start.
-    timers.push(window.setTimeout(fly, Math.max(180, 1400 - performance.now())));
-    const skip = () => fly();
+    const skip = () => leave();
     const events = ["wheel", "touchstart", "keydown", "pointerdown"] as const;
     events.forEach((e) => window.addEventListener(e, skip, { once: true, passive: true }));
 
@@ -115,5 +148,9 @@ export function Intro({ tagline }: { tagline: string }) {
   );
 }
 
-/** Runs in <head> before the first paint: decides whether the intro plays. */
-export const INTRO_HEAD_SCRIPT = `(function(){var d=document.documentElement;d.setAttribute("data-js","");try{var seen=sessionStorage.getItem("scale.intro");var calm=window.matchMedia("(prefers-reduced-motion: reduce)").matches;d.setAttribute("data-intro",seen||calm?"skip":"play")}catch(e){d.setAttribute("data-intro","skip")}})();`;
+/**
+ * Runs in <head> before the first paint and sets html[data-intro]:
+ * "play" on every open or refresh, "calm" when the device asks for reduced
+ * motion, "skip" when coming back with Back/Forward.
+ */
+export const INTRO_HEAD_SCRIPT = `(function(){var d=document.documentElement,m="play";d.setAttribute("data-js","");try{var n=performance.getEntriesByType&&performance.getEntriesByType("navigation")[0];if(n?n.type==="back_forward":performance.navigation&&performance.navigation.type===2)m="skip";else if(window.matchMedia("(prefers-reduced-motion: reduce)").matches)m="calm"}catch(e){}d.setAttribute("data-intro",m)})();`;

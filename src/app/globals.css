@@ -1046,15 +1046,21 @@ body {
   animation: brief-fade-out 0.2s ease-in both;
 }
 
+/* --kb / --vvh come from KeyboardInset.tsx: with the phone keyboard up, the
+   sheet sits right on top of it and shrinks to the space that's left. */
 .brief-dialog {
   position: fixed;
   z-index: 71;
   inset-inline: 0;
-  bottom: 0;
+  bottom: var(--kb, 0px);
   display: flex;
-  max-height: 92dvh;
+  max-height: min(92dvh, calc(var(--vvh, 100dvh) - 0.75rem));
   outline: none;
   animation: sheet-up 0.42s var(--ease-out-quart) both;
+}
+/* Typing: the intro line goes, so the question and the field get the room. */
+html[data-keyboard] .bf--dialog .bf-sub {
+  display: none;
 }
 .brief-dialog[data-state="closed"] {
   animation: sheet-down 0.22s ease-in both;
@@ -1310,6 +1316,95 @@ textarea.bf-input {
   margin-top: 0.15rem;
   font-family: var(--font-mono);
   font-size: 0.82rem;
+  color: var(--color-smoke);
+}
+
+/* First question: two choice cards (quality or speed). */
+.bf-options {
+  display: grid;
+  gap: 0.7rem;
+}
+.bf-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid rgb(243 240 235 / 0.18);
+  border-radius: 0.85rem;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
+}
+.bf-option:hover {
+  border-color: rgb(243 240 235 / 0.34);
+}
+.bf-option[data-on] {
+  border-color: var(--color-signal);
+  background: rgb(255 91 31 / 0.08);
+}
+.bf-option:has(input:focus-visible) {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
+}
+.bf-option-dot {
+  position: relative;
+  flex-shrink: 0;
+  width: 1.3rem;
+  height: 1.3rem;
+  margin-top: 0.12rem;
+  border: 1.5px solid rgb(243 240 235 / 0.4);
+  border-radius: 999px;
+  transition: border-color 0.2s;
+}
+.bf-option-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0.22rem;
+  border-radius: inherit;
+  background: var(--color-signal);
+  transform: scale(0);
+  transition: transform 0.2s var(--ease-out-quart);
+}
+.bf-option[data-on] .bf-option-dot {
+  border-color: var(--color-signal);
+}
+.bf-option[data-on] .bf-option-dot::after {
+  transform: scale(1);
+}
+.bf-option-body {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.bf-option-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.6rem;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--color-chalk);
+}
+.bf-option-badge {
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  background: var(--color-signal);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ink-950);
+}
+:lang(ar) .bf-option-badge {
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  letter-spacing: 0;
+}
+.bf-option-text {
+  font-size: 0.9rem;
+  line-height: 1.5;
   color: var(--color-smoke);
 }
 .bf-social-label {
@@ -2042,9 +2137,10 @@ html[data-js] .count-up:not([data-counted]) {
 
 /* ------------------------------ Opening intro ------------------------------ */
 /* 0.0s the camera rolls (frame, REC, timecode) · 0.2s SCALE lands letter by
-   letter · 0.75s the ADV tab wipes in, a light passes over it · 1.4s the mark
-   flies into the nav while the black lifts like a curtain · ~2.4s gone.
-   Played by Intro.tsx; without it, the whole thing fades out on its own. */
+   letter · 0.75s the ADV tab wipes in, a light passes over it · 1.9s the mark
+   flies into the nav while the black lifts like a curtain · ~2.9s gone.
+   Played by Intro.tsx on every open or refresh; without it, the whole thing
+   fades out on its own. html[data-intro="calm"] is the reduced-motion version. */
 html[data-intro="skip"] .intro {
   display: none;
 }
@@ -2055,10 +2151,14 @@ html[data-intro="skip"] .intro {
   display: grid;
   place-items: center;
   color: var(--color-chalk);
-  animation: intro-fallback 0.5s ease-in 2.6s forwards;
+  animation: intro-fallback 0.5s ease-in 3.1s forwards;
 }
 .intro[data-js] {
   animation: none;
+}
+/* Once the mark takes off the page shows through: taps go to it, not the intro. */
+.intro[data-phase] {
+  pointer-events: none;
 }
 .intro-bg {
   position: absolute;
@@ -2221,7 +2321,7 @@ html[data-intro="skip"] .intro {
 }
 html[data-intro="play"] [data-site-logo] {
   opacity: 0;
-  animation: intro-fallback-in 0s linear 3.2s forwards;
+  animation: intro-fallback-in 0s linear 3.7s forwards;
 }
 /* The headline rises as the curtain lifts, not hidden behind it. */
 html[data-intro="play"] .hero-title {
@@ -2275,8 +2375,16 @@ html[data-intro="play"] .hero-title {
     opacity: 1;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .intro {
-    display: none;
-  }
+/* Reduce motion: nothing moves. The frame and the mark are simply there, then
+   dissolve (a fade is the one change kept, over the site-wide 0.01ms rule). */
+html[data-intro="calm"] .intro * {
+  animation: none !important;
+}
+html[data-intro="calm"] .intro-bar,
+html[data-intro="calm"] .intro-adv::after {
+  display: none;
+}
+html[data-intro="calm"] .intro[data-phase="fade"] {
+  opacity: 0;
+  transition: opacity 0.5s ease-out !important;
 }

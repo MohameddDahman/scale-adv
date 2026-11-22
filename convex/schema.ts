@@ -11,6 +11,7 @@ import {
   teamMemberFields,
   testimonialFields,
   vAppStage,
+  vLeadPriority,
   vLeadStatus,
   vRole,
 } from "./lib/validators";
@@ -80,6 +81,8 @@ export default defineSchema({
     whatsapp: v.optional(v.string()),
     /** Social profile links: Instagram, TikTok, Facebook… */
     socials: v.optional(v.array(v.string())),
+    /** First question of the website form: what matters most, quality or speed. */
+    priority: v.optional(vLeadPriority),
     email: v.optional(v.string()),
     city: v.optional(v.string()),
     link: v.optional(v.string()),

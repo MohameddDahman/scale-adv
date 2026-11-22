@@ -32,10 +32,15 @@ export function statValue(raw: string): string {
   if (!/^\d[\d,.\s]*$/.test(western)) return typed;
   const n = Number(western.replace(/[,\s]/g, ""));
   if (!Number.isFinite(n)) return typed;
+  return n >= 1_000 ? `${shortDown(n)}+` : shortDown(n);
+}
+
+/** 1.8M / 518K / 950, always rounded down: statValue, and the count-up on its way there. */
+export function shortDown(n: number): string {
   const down = (value: number, suffix: string) => {
     const digits = value >= 100 ? 0 : 1;
     const f = 10 ** digits;
-    return `${(Math.floor(value * f) / f).toFixed(digits).replace(/\.0$/, "")}${suffix}+`;
+    return `${(Math.floor(value * f) / f).toFixed(digits).replace(/\.0$/, "")}${suffix}`;
   };
   if (n >= 1_000_000_000) return down(n / 1_000_000_000, "B");
   if (n >= 1_000_000) return down(n / 1_000_000, "M");
