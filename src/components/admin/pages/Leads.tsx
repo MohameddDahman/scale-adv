@@ -28,6 +28,7 @@ import {
   Button,
   EmptyState,
   Field,
+  IconButton,
   Input,
   LoadingRows,
   Modal,
@@ -77,6 +78,21 @@ export function LeadsPage() {
   const convex = useConvex();
   const { token } = useSession();
   const [exporting, setExporting] = useState(false);
+
+  async function deleteOne(id: string, label: string) {
+    if (!(await confirm({ title: `Delete ${label}?`, body: "Its notes are deleted too. This can't be undone.", confirmLabel: "Delete", tone: "danger" }))) return;
+    try {
+      await remove({ ids: [id as Id<"leads">] });
+      toast("Lead deleted");
+      setSelected((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    } catch (e) {
+      toast(errorMessage(e), "error");
+    }
+  }
 
   async function exportCsv() {
     if (!token) return;
@@ -149,14 +165,27 @@ export function LeadsPage() {
                 setSelected(new Set());
               }}
               onDelete={async () => {
-                if (!(await confirm({ title: `Delete ${selected.size} lead${selected.size > 1 ? "s" : ""}?`, body: "Notes are deleted too. This can't be undone.", confirmLabel: "Delete", tone: "danger" }))) return;
-                await remove({ ids: [...selected] as Id<"leads">[] }).catch((e) => toast(errorMessage(e), "error"));
-                toast("Deleted");
-                setSelected(new Set());
+                const n = selected.size;
+                if (!(await confirm({ title: `Delete ${n} lead${n > 1 ? "s" : ""}?`, body: "Notes are deleted too. This can't be undone.", confirmLabel: "Delete", tone: "danger" }))) return;
+                try {
+                  await remove({ ids: [...selected] as Id<"leads">[] });
+                  toast(`Deleted ${n} lead${n > 1 ? "s" : ""}`);
+                  setSelected(new Set());
+                } catch (e) {
+                  toast(errorMessage(e), "error");
+                }
               }}
             />
           ) : null}
-          <LeadsTable status={status} search={search} selected={selected} setSelected={setSelected} staffMap={staffMap} onOpen={(id) => setParam("id", id)} />
+          <LeadsTable
+            status={status}
+            search={search}
+            selected={selected}
+            setSelected={setSelected}
+            staffMap={staffMap}
+            onOpen={(id) => setParam("id", id)}
+            onDelete={deleteOne}
+          />
         </Panel>
       )}
 
@@ -195,6 +224,7 @@ function LeadsTable({
   setSelected,
   staffMap,
   onOpen,
+  onDelete,
 }: {
   status: LeadStatusKey | null;
   search: string;
@@ -202,6 +232,7 @@ function LeadsTable({
   setSelected: (s: Set<string>) => void;
   staffMap: Map<string, string>;
   onOpen: (id: string) => void;
+  onDelete: (id: string, label: string) => void;
 }) {
   const now = useNow();
   const { results, status: pageStatus, loadMore } = useAdminPaginatedQuery(
@@ -242,11 +273,15 @@ function LeadsTable({
             <th scope="col" className="px-3 py-2.5 text-start font-semibold">Status</th>
             <th scope="col" className="px-3 py-2.5 text-start font-semibold">Owner</th>
             <th scope="col" className="px-3 py-2.5 text-end font-semibold">Received</th>
+            {/* Pinned to the edge, so Delete stays in reach when the table scrolls sideways on a phone. */}
+            <th scope="col" className="sticky end-0 w-12 bg-a-raised px-2 py-2.5">
+              <span className="sr-only">Delete</span>
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-a-line">
           {results.map((l) => (
-            <tr key={l._id} className={cn("cursor-pointer transition-colors hover:bg-a-hover", selected.has(l._id) && "bg-a-accent-soft")} onClick={() => onOpen(l._id)}>
+            <tr key={l._id} className={cn("group cursor-pointer transition-colors hover:bg-a-hover", selected.has(l._id) && "bg-a-accent-soft")} onClick={() => onOpen(l._id)}>
               <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
                 <input type="checkbox" aria-label={`Select ${l.company}`} checked={selected.has(l._id)} onChange={() => toggle(l._id)} className="size-4 accent-[var(--color-signal)]" />
               </td>
@@ -278,6 +313,14 @@ function LeadsTable({
               </td>
               <td className="px-3 py-2.5 text-end text-a-muted" title={dateTime(l._creationTime)}>
                 {relativeTime(l._creationTime)}
+              </td>
+              <td
+                className={cn("sticky end-0 px-2 py-1 text-end", selected.has(l._id) ? "bg-a-accent-soft" : "bg-a-surface group-hover:bg-a-hover")}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <IconButton label={`Delete ${l.company || l.name}`} tone="danger" onClick={() => onDelete(l._id, l.company || l.name)}>
+                  <Trash className="size-4" aria-hidden />
+                </IconButton>
               </td>
             </tr>
           ))}

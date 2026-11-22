@@ -31,6 +31,7 @@ import {
   Button,
   EmptyState,
   Field,
+  IconButton,
   LoadingRows,
   PageHeader,
   Panel,
@@ -175,10 +176,15 @@ export function ApplicationsPage() {
                 className="text-a-danger"
                 icon={<Trash className="size-4" aria-hidden />}
                 onClick={async () => {
-                  if (!(await confirm({ title: `Delete ${selected.size} application${selected.size > 1 ? "s" : ""}?`, body: "Their CVs are deleted too. This can't be undone.", confirmLabel: "Delete", tone: "danger" }))) return;
-                  await remove({ ids: [...selected] as Id<"applications">[] }).catch((err) => toast(errorMessage(err), "error"));
-                  toast("Deleted");
-                  setSelected(new Set());
+                  const n = selected.size;
+                  if (!(await confirm({ title: `Delete ${n} application${n > 1 ? "s" : ""}?`, body: "Their CVs are deleted too. This can't be undone.", confirmLabel: "Delete", tone: "danger" }))) return;
+                  try {
+                    await remove({ ids: [...selected] as Id<"applications">[] });
+                    toast(`Deleted ${n} application${n > 1 ? "s" : ""}`);
+                    setSelected(new Set());
+                  } catch (err) {
+                    toast(errorMessage(err), "error");
+                  }
                 }}
               >
                 Delete
@@ -188,7 +194,27 @@ export function ApplicationsPage() {
               </button>
             </div>
           ) : null}
-          <AppsTable jobId={jobId} stage={stage} search={search} selected={selected} setSelected={setSelected} />
+          <AppsTable
+            jobId={jobId}
+            stage={stage}
+            search={search}
+            selected={selected}
+            setSelected={setSelected}
+            onDelete={async (id, name) => {
+              if (!(await confirm({ title: `Delete ${name}'s application?`, body: "The CV file is deleted too. This can't be undone.", confirmLabel: "Delete", tone: "danger" }))) return;
+              try {
+                await remove({ ids: [id as Id<"applications">] });
+                toast("Application deleted");
+                setSelected((prev) => {
+                  const next = new Set(prev);
+                  next.delete(id);
+                  return next;
+                });
+              } catch (err) {
+                toast(errorMessage(err), "error");
+              }
+            }}
+          />
         </Panel>
       )}
     </div>
@@ -201,12 +227,14 @@ function AppsTable({
   search,
   selected,
   setSelected,
+  onDelete,
 }: {
   jobId: Id<"jobs"> | null;
   stage: AppStageKey | null;
   search: string;
   selected: Set<string>;
   setSelected: (s: Set<string>) => void;
+  onDelete: (id: string, name: string) => void;
 }) {
   const router = useRouter();
   const { results, status, loadMore } = useAdminPaginatedQuery(
@@ -245,11 +273,15 @@ function AppsTable({
             <th scope="col" className="px-3 py-2.5 text-start font-semibold">Rating</th>
             <th scope="col" className="px-3 py-2.5 text-start font-semibold">Files</th>
             <th scope="col" className="px-3 py-2.5 text-end font-semibold">Applied</th>
+            {/* Pinned to the edge, so Delete stays in reach when the table scrolls sideways on a phone. */}
+            <th scope="col" className="sticky end-0 w-12 bg-a-raised px-2 py-2.5">
+              <span className="sr-only">Delete</span>
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-a-line">
           {results.map((a) => (
-            <tr key={a._id} className={cn("cursor-pointer hover:bg-a-hover", selected.has(a._id) && "bg-a-accent-soft")} onClick={() => router.push(`/admin/applications/${a._id}`)}>
+            <tr key={a._id} className={cn("group cursor-pointer hover:bg-a-hover", selected.has(a._id) && "bg-a-accent-soft")} onClick={() => router.push(`/admin/applications/${a._id}`)}>
               <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
                 <input type="checkbox" aria-label={`Select ${a.name}`} checked={selected.has(a._id)} onChange={() => toggle(a._id)} className="size-4 accent-[var(--color-signal)]" />
               </td>
@@ -276,6 +308,14 @@ function AppsTable({
               </td>
               <td className="px-3 py-2.5 text-end text-a-muted" title={dateTime(a._creationTime)}>
                 {relativeTime(a._creationTime)}
+              </td>
+              <td
+                className={cn("sticky end-0 px-2 py-1 text-end", selected.has(a._id) ? "bg-a-accent-soft" : "bg-a-surface group-hover:bg-a-hover")}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <IconButton label={`Delete ${a.name}'s application`} tone="danger" onClick={() => onDelete(a._id, a.name)}>
+                  <Trash className="size-4" aria-hidden />
+                </IconButton>
               </td>
             </tr>
           ))}
