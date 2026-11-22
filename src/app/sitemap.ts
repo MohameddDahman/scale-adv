@@ -13,6 +13,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/careers",
     "/careers/apply",
     "/contact",
+    "/client",
+    "/apply",
     ...jobs.map((j) => `/careers/${j.slug}`),
     ...caseStudies.map((c) => `/work/${c.slug}`),
   ];

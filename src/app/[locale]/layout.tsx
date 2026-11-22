@@ -62,7 +62,12 @@ export default async function LocaleLayout({ children }: LayoutProps<"/[locale]"
       </head>
       <body className="min-h-dvh bg-ink-950">
         <Intro tagline={tx(data.settings.hero.eyebrow, locale)} />
-        <BriefProvider locale={locale} text={briefText(d)} contactHref={localeHref(locale, "/contact")}>
+        <BriefProvider
+          locale={locale}
+          text={briefText(d)}
+          contactHref={localeHref(locale, "/contact")}
+          clientHref={localeHref(locale, "/client")}
+        >
           <ApplyProvider
             locale={locale}
             jobs={data.openJobs}
@@ -71,6 +76,7 @@ export default async function LocaleLayout({ children }: LayoutProps<"/[locale]"
             t={d.apply}
             e={d.errors}
             careersHref={localeHref(locale, "/careers")}
+            applyHref={localeHref(locale, "/apply")}
           >
           <a
             href="#main"

@@ -7,23 +7,26 @@ import type { Locale } from "@/lib/i18n";
 import { BriefFlow, type BriefText } from "./BriefFlow";
 import { KeyboardInset } from "./KeyboardInset";
 
-type BriefApi = { open: () => void; contactHref: string };
+type BriefApi = { open: () => void; contactHref: string; clientHref: string };
 const BriefContext = createContext<BriefApi | null>(null);
 
-/** Hosts the "Start a project" dialog once per page; any BriefLink can open it. */
+/** Hosts the "Become our client" sheet once per page; any BriefLink can open it. */
 export function BriefProvider({
   locale,
   text,
   contactHref,
+  clientHref,
   children,
 }: {
   locale: Locale;
   text: BriefText;
   contactHref: string;
+  /** The page that is just this form: the link to share. */
+  clientHref: string;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const api = useMemo<BriefApi>(() => ({ open: () => setOpen(true), contactHref }), [contactHref]);
+  const api = useMemo<BriefApi>(() => ({ open: () => setOpen(true), contactHref, clientHref }), [contactHref, clientHref]);
 
   return (
     <BriefContext.Provider value={api}>
@@ -44,23 +47,23 @@ export function BriefProvider({
 }
 
 /**
- * "Start a project" buttons. They open the brief in place; with a modifier
- * key, before JavaScript loads, or on the contact page itself they behave
- * like a normal link to the brief on the contact page.
+ * "Become our client" buttons. They open the form in a sheet; with a modifier
+ * key or before JavaScript loads they're a plain link to the /client page.
+ * On a page that already shows the form (contact, /client) they scroll to it.
  */
 export function BriefLink({ className, children, onOpen }: { className?: string; children: ReactNode; onOpen?: () => void }) {
   const brief = useContext(BriefContext);
   const pathname = usePathname();
-  const contactHref = brief?.contactHref ?? "/contact";
-  const onContactPage = pathname === contactHref;
+  const clientHref = brief?.clientHref ?? "/client";
+  const formHere = pathname === clientHref || pathname === brief?.contactHref;
 
   return (
     <a
-      href={`${contactHref}#brief`}
+      href={formHere ? "#brief" : clientHref}
       className={className}
       onClick={(ev: MouseEvent<HTMLAnchorElement>) => {
         onOpen?.();
-        if (!brief || onContactPage || ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+        if (!brief || formHere || ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
         ev.preventDefault();
         brief.open();
       }}
