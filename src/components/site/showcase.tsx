@@ -401,9 +401,11 @@ export function FormatShelf({ items, labels }: { items: FormatCard[]; labels: { 
             </span>
             <span className="format-top">
               <span className="rec-dot" aria-hidden />
-              <span className="font-mono text-[0.7rem] tracking-[0.12em]" dir="ltr" title={labels.length}>
-                {f.length}
-              </span>
+              {f.length ? (
+                <span className="font-mono text-[0.7rem] tracking-[0.12em]" dir="ltr" title={labels.length}>
+                  {f.length}
+                </span>
+              ) : null}
             </span>
             <div className="format-copy">
               <h3
@@ -413,10 +415,12 @@ export function FormatShelf({ items, labels }: { items: FormatCard[]; labels: { 
               >
                 {f.name}
               </h3>
-              <p className="format-line">{f.line}</p>
-              <p className="format-best">
-                <span className="mono-label text-signal">{labels.bestFor}</span> {f.best}
-              </p>
+              {f.line ? <p className="format-line">{f.line}</p> : null}
+              {f.best ? (
+                <p className="format-best">
+                  <span className="mono-label text-signal">{labels.bestFor}</span> {f.best}
+                </p>
+              ) : null}
             </div>
           </li>
         ))}

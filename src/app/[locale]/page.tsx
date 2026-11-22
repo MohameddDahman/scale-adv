@@ -41,7 +41,7 @@ export default async function HomePage() {
       <Hero locale={locale} d={d} settings={settings} openRoles={layout.openRoles} clients={home.clients} />
       <ServicesTriad locale={locale} d={d} services={home.services} />
       <ProcessSection locale={locale} d={d} />
-      <FormatsSection locale={locale} d={d} reels={home.reels} />
+      <FormatsSection locale={locale} d={d} reels={home.reels} cards={settings.formats} />
       <WorkSection locale={locale} d={d} reels={home.reels} instagram={settings.social.instagram} />
       <WhySection locale={locale} d={d} />
       <CaseStudiesSection locale={locale} d={d} items={home.caseStudies} />

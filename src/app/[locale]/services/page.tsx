@@ -57,7 +57,7 @@ export default async function ServicesPage() {
       {settings.hero.showTimeline ? <TimelineSection locale={locale} d={d} frames={frames} /> : null}
       <ServicesTriad locale={locale} d={d} services={data.services} showMore={false} />
       <ProcessSection locale={locale} d={d} />
-      <FormatsSection locale={locale} d={d} reels={work.reels} />
+      <FormatsSection locale={locale} d={d} reels={work.reels} cards={settings.formats} />
       <WhySection locale={locale} d={d} />
 
       {data.caseStudies.length ? (

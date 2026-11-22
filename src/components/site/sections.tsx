@@ -11,7 +11,6 @@ import type {
   PublicSettings,
   PublicTestimonial,
 } from "@convex/lib/shape";
-import { REEL_FORMATS } from "@convex/lib/validators";
 import { cn, statValue, whatsappLink } from "@/lib/format";
 import { fmt, localeHref, tx, type Dictionary, type Locale } from "@/lib/i18n";
 import { ApplyLink } from "./Apply";
@@ -439,15 +438,25 @@ export function ProcessSection({ d }: Base) {
   );
 }
 
-/** Shown first: the formats people recognise fastest. */
-const FORMAT_ORDER = ["pov", "skit", "storytelling", "product", "ugc", "voxpop", "bts", "ad", "motion"];
-
-/** Reel formats, illustrated with covers of published reels in that format where there are some. */
-export function FormatsSection({ d, reels }: Base & { reels: PublicReel[] }) {
+/**
+ * "Formats that sell": the cards from Site settings → Format cards, in that
+ * order. A card's own picture comes first; without one it borrows the cover
+ * of a published reel of that format, if there is one.
+ */
+export function FormatsSection({ locale, d, reels, cards }: Base & { reels: PublicReel[]; cards: PublicSettings["formats"] }) {
   const stills = new Map<string, string>();
   for (const r of reels) if (r.poster && !stills.has(r.format)) stills.set(r.format, r.poster);
-  const keys = [...FORMAT_ORDER, ...REEL_FORMATS.filter((k) => !FORMAT_ORDER.includes(k))].filter((k) => d.formats.items[k]);
-  const items = keys.map((key) => ({ key, name: d.work.formats[key] ?? key, ...d.formats.items[key], still: stills.get(key) ?? null }));
+  const items = cards
+    .filter((c) => !c.hidden && tx(c.name, locale).trim())
+    .map((c) => ({
+      key: c.key,
+      name: tx(c.name, locale),
+      line: tx(c.line, locale),
+      best: tx(c.best, locale),
+      length: tx(c.length, locale),
+      still: c.image ?? stills.get(c.key) ?? null,
+    }));
+  if (!items.length) return null;
   return (
     <section className="overflow-hidden border-t border-chalk/10 py-20 md:py-28" aria-labelledby="formats-title">
       <div className="container-site">

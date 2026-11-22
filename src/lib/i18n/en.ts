@@ -64,17 +64,6 @@ const en = {
     next: "More formats",
     bestFor: "Best for",
     length: "Length",
-    items: {
-      pov: { line: "The camera is the customer.", best: "Fashion, stores, anything you try on", length: "10–20s" },
-      skit: { line: "A short scene with a twist that lands on the product.", best: "Brands with a personality", length: "20–40s" },
-      storytelling: { line: "One story, told fast, that makes the product matter.", best: "Launches, real estate, big purchases", length: "30–60s" },
-      product: { line: "Close-ups, details and the moment it works.", best: "Supplements, electronics, home goods", length: "10–20s" },
-      voxpop: { line: "Real people on the street, real reactions.", best: "Awareness and social proof", length: "15–30s" },
-      ugc: { line: "Looks like a customer filmed it. Sells like an ad.", best: "Online stores, beauty, food", length: "15–30s" },
-      bts: { line: "How it's made, who makes it, and why it costs what it does.", best: "Trust and premium pricing", length: "20–45s" },
-      ad: { line: "Built for paid: the hook in the first second, the offer by the fifth.", best: "Sales campaigns", length: "6–15s" },
-      motion: { line: "Type, graphics and rhythm when there's nothing to film.", best: "Offers, menus, announcements", length: "6–15s" },
-    } as Record<string, { line: string; best: string; length: string }>,
   },
   why: {
     tab: "Why SCALE",

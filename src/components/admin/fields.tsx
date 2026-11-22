@@ -127,6 +127,7 @@ export function ImageField({
   aspect = "aspect-square",
   hint,
   preset = "library",
+  allowLink = true,
 }: {
   storageId?: string;
   path?: string;
@@ -135,6 +136,8 @@ export function ImageField({
   hint?: string;
   /** How the image is used; decides the size it's shrunk to before upload. */
   preset?: ImagePreset;
+  /** Offer "Link" (an address instead of an upload) only where a link can be stored. */
+  allowLink?: boolean;
 }) {
   const urls = useStorageUrls([storageId]);
   const { upload, progress } = useUploader();
@@ -185,9 +188,11 @@ export function ImageField({
           <Button size="sm" onClick={() => setPicker(true)}>
             Library
           </Button>
-          <Button size="sm" variant="ghost" icon={<LinkSimple className="size-4" aria-hidden />} onClick={() => setLinkMode((v) => !v)}>
-            Link
-          </Button>
+          {allowLink ? (
+            <Button size="sm" variant="ghost" icon={<LinkSimple className="size-4" aria-hidden />} onClick={() => setLinkMode((v) => !v)}>
+              Link
+            </Button>
+          ) : null}
           {preview ? (
             <Button size="sm" variant="ghost" className="text-a-danger" onClick={() => onChange({ storageId: undefined, path: undefined })}>
               Remove
