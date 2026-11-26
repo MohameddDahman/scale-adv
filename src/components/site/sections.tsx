@@ -6,7 +6,6 @@ import type {
   PublicClient,
   PublicFaq,
   PublicJobSummary,
-  PublicReel,
   PublicService,
   PublicSettings,
   PublicTestimonial,
@@ -20,7 +19,7 @@ import { JobRow } from "./JobRow";
 import { Media } from "./Media";
 import { Reveal } from "./Reveal";
 import { SectionHead } from "./SectionHead";
-import { CountUp, FormatShelf, LogoMarquee, ProcessScrub } from "./showcase";
+import { CountUp, LogoMarquee, ProcessScrub } from "./showcase";
 
 type Base = { locale: Locale; d: Dictionary };
 
@@ -432,37 +431,6 @@ export function ProcessSection({ d }: Base) {
         <SectionHead id="process-title" tab={d.servicesPage.processTab} title={d.servicesPage.processTitle} body={d.process.body} />
         <div className="mt-14">
           <ProcessScrub steps={d.servicesPage.steps} nowLabel={d.process.now} />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/**
- * "Formats that sell": the cards from Site settings → Format cards, in that
- * order. A card's own picture comes first; without one it borrows the cover
- * of a published reel of that format, if there is one.
- */
-export function FormatsSection({ locale, d, reels, cards }: Base & { reels: PublicReel[]; cards: PublicSettings["formats"] }) {
-  const stills = new Map<string, string>();
-  for (const r of reels) if (r.poster && !stills.has(r.format)) stills.set(r.format, r.poster);
-  const items = cards
-    .filter((c) => !c.hidden && tx(c.name, locale).trim())
-    .map((c) => ({
-      key: c.key,
-      name: tx(c.name, locale),
-      line: tx(c.line, locale),
-      best: tx(c.best, locale),
-      length: tx(c.length, locale),
-      still: c.image ?? stills.get(c.key) ?? null,
-    }));
-  if (!items.length) return null;
-  return (
-    <section className="overflow-hidden border-t border-chalk/10 py-20 md:py-28" aria-labelledby="formats-title">
-      <div className="container-site">
-        <SectionHead id="formats-title" tab={d.formats.tab} title={d.formats.title} body={d.formats.body} />
-        <div className="mt-10">
-          <FormatShelf items={items} labels={{ prev: d.formats.prev, next: d.formats.next, bestFor: d.formats.bestFor, length: d.formats.length }} />
         </div>
       </div>
     </section>

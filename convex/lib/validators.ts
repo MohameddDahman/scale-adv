@@ -259,11 +259,11 @@ export const vAnnouncement = v.object({
 });
 
 /**
- * One card in "Formats that sell". `key` is a reel format (skit, pov…) for the
- * built-in cards, so a card with no picture can borrow a reel cover of that
- * format; cards added in the dashboard get a key of their own.
+ * One card of the old "Formats that sell" section, taken off the site on
+ * 2026-11-26 at the client's request. Kept only so settings saved while it
+ * existed stay valid; nothing reads it.
  */
-export const vFormatCard = v.object({
+const vFormatCard = v.object({
   key: v.string(),
   image: v.optional(v.id("_storage")),
   name: vText,
@@ -272,7 +272,6 @@ export const vFormatCard = v.object({
   length: vText,
   hidden: v.boolean(),
 });
-export type FormatCardValue = Infer<typeof vFormatCard>;
 
 export const settingsFields = {
   general: vGeneral,
@@ -283,7 +282,7 @@ export const settingsFields = {
   careers: vCareers,
   seo: vSeo,
   announcement: vAnnouncement,
-  /** Optional so settings saved before the cards were editable stay valid; the defaults fill in. */
+  /** No longer used (see vFormatCard); stays optional so the saved settings validate. */
   formats: v.optional(v.array(vFormatCard)),
 };
 
@@ -296,5 +295,4 @@ export type SettingsValue = {
   careers: Infer<typeof vCareers>;
   seo: Infer<typeof vSeo>;
   announcement: Infer<typeof vAnnouncement>;
-  formats: FormatCardValue[];
 };

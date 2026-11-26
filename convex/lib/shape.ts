@@ -4,7 +4,7 @@
  * both use them, so the two can never drift apart.
  */
 import type { Doc } from "../_generated/dataModel";
-import type { FormatCardValue, SettingsValue, Text } from "./validators";
+import type { SettingsValue, Text } from "./validators";
 
 export type UrlResolver = (id: string | undefined, fallback?: string) => Promise<string | null>;
 
@@ -249,18 +249,14 @@ export async function shapeTeamMember(m: Doc<"teamMembers">, url: UrlResolver): 
   };
 }
 
-export type PublicFormatCard = Omit<FormatCardValue, "image"> & { image: string | null };
-
-export type PublicSettings = Omit<SettingsValue, "seo" | "formats"> & {
+export type PublicSettings = Omit<SettingsValue, "seo"> & {
   seo: { title: Text; description: Text; ogImage: string | null };
-  formats: PublicFormatCard[];
 };
 
 export async function shapeSettings(s: SettingsValue, url: UrlResolver): Promise<PublicSettings> {
   return {
     ...s,
     seo: { title: s.seo.title, description: s.seo.description, ogImage: await url(s.seo.ogImage) },
-    formats: await Promise.all(s.formats.map(async (f) => ({ ...f, image: await url(f.image) }))),
   };
 }
 

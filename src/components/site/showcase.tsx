@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeft, ArrowRight } from "@phosphor-icons/react";
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { PublicClient } from "@convex/lib/shape";
 import { cn, shortDown } from "@/lib/format";
 import { tx, type Locale } from "@/lib/i18n";
@@ -342,89 +342,6 @@ export function ProcessScrub({ steps, nowLabel }: { steps: { title: string; body
           </li>
         ))}
       </ol>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* FormatShelf: a swipeable shelf of reel formats.                     */
-/* ------------------------------------------------------------------ */
-
-export type FormatCard = { key: string; name: string; line: string; best: string; length: string; still: string | null };
-
-export function FormatShelf({ items, labels }: { items: FormatCard[]; labels: { prev: string; next: string; bestFor: string; length: string } }) {
-  const shelf = useRef<HTMLUListElement>(null);
-  const [edge, setEdge] = useState<{ start: boolean; end: boolean }>({ start: true, end: false });
-
-  useEffect(() => {
-    const el = shelf.current;
-    if (!el) return;
-    const measure = () => {
-      const max = el.scrollWidth - el.clientWidth;
-      const pos = Math.abs(el.scrollLeft); // RTL scrolls in negative numbers
-      setEdge({ start: pos < 8, end: pos > max - 8 });
-    };
-    const frame = requestAnimationFrame(measure);
-    el.addEventListener("scroll", measure, { passive: true });
-    window.addEventListener("resize", measure);
-    return () => {
-      cancelAnimationFrame(frame);
-      el.removeEventListener("scroll", measure);
-      window.removeEventListener("resize", measure);
-    };
-  }, []);
-
-  const move = (dir: 1 | -1) => {
-    const el = shelf.current;
-    if (!el) return;
-    const card = el.querySelector("li");
-    const step = card ? card.getBoundingClientRect().width + 12 : 280;
-    const rtl = getComputedStyle(el).direction === "rtl";
-    el.scrollBy({ left: dir * step * 2 * (rtl ? -1 : 1), behavior: reducedMotion() ? "auto" : "smooth" });
-  };
-
-  return (
-    <div>
-      <div className="mb-6 flex justify-end gap-2">
-        <button type="button" className="shelf-btn" onClick={() => move(-1)} disabled={edge.start} aria-label={labels.prev}>
-          <ArrowLeft className="size-5 rtl:-scale-x-100" aria-hidden />
-        </button>
-        <button type="button" className="shelf-btn" onClick={() => move(1)} disabled={edge.end} aria-label={labels.next}>
-          <ArrowRight className="size-5 rtl:-scale-x-100" aria-hidden />
-        </button>
-      </div>
-      <ul ref={shelf} className="format-shelf">
-        {items.map((f) => (
-          <li key={f.key} className="format-card viewfinder">
-            <span className={cn("format-bg", !f.still && "format-bg--empty")} aria-hidden>
-              {f.still ? <Media src={f.still} alt="" sizes="(min-width: 768px) 280px, 70vw" className="object-cover" /> : null}
-            </span>
-            <span className="format-top">
-              <span className="rec-dot" aria-hidden />
-              {f.length ? (
-                <span className="font-mono text-[0.7rem] tracking-[0.12em]" dir="ltr" title={labels.length}>
-                  {f.length}
-                </span>
-              ) : null}
-            </span>
-            <div className="format-copy">
-              <h3
-                className="format-name"
-                // Font size scales with the longest word so STORYTELLING fits the card.
-                style={{ "--fit": (1 / (Math.max(...f.name.split(/\s+/).map((w) => w.length)) * 0.78)).toFixed(4) } as CSSProperties}
-              >
-                {f.name}
-              </h3>
-              {f.line ? <p className="format-line">{f.line}</p> : null}
-              {f.best ? (
-                <p className="format-best">
-                  <span className="mono-label text-signal">{labels.bestFor}</span> {f.best}
-                </p>
-              ) : null}
-            </div>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

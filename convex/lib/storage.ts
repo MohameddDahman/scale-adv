@@ -63,9 +63,6 @@ export async function storageReferences(ctx: QueryCtx): Promise<Map<string, Stor
   }
   const settings = await ctx.db.query("settings").first();
   add(settings?.seo.ogImage, "Share image · Site settings", "/admin/settings");
-  for (const f of settings?.formats ?? []) {
-    add(f.image, `Format card · ${f.name.en || f.name.ar}`, "/admin/settings");
-  }
   return refs;
 }
 
@@ -91,9 +88,5 @@ export async function clearReferences(ctx: MutationCtx, id: Id<"_storage">) {
   if (settings?.seo.ogImage === id) {
     const { ogImage: _removed, ...seo } = settings.seo;
     await ctx.db.patch("settings", settings._id, { seo });
-  }
-  if (settings?.formats?.some((f) => f.image === id)) {
-    const formats = settings.formats.map(({ image, ...rest }) => (image === id ? rest : { ...rest, image }));
-    await ctx.db.patch("settings", settings._id, { formats });
   }
 }

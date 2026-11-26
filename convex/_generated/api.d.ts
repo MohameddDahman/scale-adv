@@ -17,7 +17,6 @@ import type * as clients from "../clients.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
 import type * as faqs from "../faqs.js";
-import type * as formats from "../formats.js";
 import type * as forms from "../forms.js";
 import type * as http from "../http.js";
 import type * as jobs from "../jobs.js";
@@ -61,7 +60,6 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   dashboard: typeof dashboard;
   faqs: typeof faqs;
-  formats: typeof formats;
   forms: typeof forms;
   http: typeof http;
   jobs: typeof jobs;

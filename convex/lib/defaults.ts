@@ -20,23 +20,6 @@ import type {
 
 const t = (en: string, ar: string): Text => ({ en, ar });
 
-/**
- * "Formats that sell" as written at launch: what the site shows until the
- * dashboard's "Format cards" tab is saved, and where that tab starts from.
- */
-const card = (key: string, name: Text, line: Text, best: Text, length: Text) => ({ key, name, line, best, length, hidden: false });
-export const DEFAULT_FORMAT_CARDS = [
-  card("pov", t("POV", "POV"), t("The camera is the customer.", "الكاميرا هي العميل."), t("Fashion, stores, anything you try on", "الفاشون والمحلات وأي حاجة بتتجرّب"), t("10–20s", "10–20 ث")),
-  card("skit", t("Skit", "سكتش"), t("A short scene with a twist that lands on the product.", "مشهد قصير فيه تويست بيوصل للمنتج."), t("Brands with a personality", "البراندات اللي ليها شخصية"), t("20–40s", "20–40 ث")),
-  card("storytelling", t("Storytelling", "ستوري تيلينج"), t("One story, told fast, that makes the product matter.", "قصة واحدة سريعة بتخلّي المنتج يفرق."), t("Launches, real estate, big purchases", "الإطلاقات والعقارات والمشتريات الكبيرة"), t("30–60s", "30–60 ث")),
-  card("product", t("Product", "منتج"), t("Close-ups, details and the moment it works.", "كلوز أب وتفاصيل واللحظة اللي المنتج بيشتغل فيها."), t("Supplements, electronics, home goods", "المكملات والإلكترونيات والأدوات المنزلية"), t("10–20s", "10–20 ث")),
-  card("ugc", t("UGC", "UGC"), t("Looks like a customer filmed it. Sells like an ad.", "شكله كأن عميل صوّره، وبيبيع زي الإعلان."), t("Online stores, beauty, food", "المتاجر الأونلاين والتجميل والأكل"), t("15–30s", "15–30 ث")),
-  card("voxpop", t("Street interview", "لقاء شارع"), t("Real people on the street, real reactions.", "ناس حقيقية في الشارع وردود فعل حقيقية."), t("Awareness and social proof", "الانتشار وثقة الناس"), t("15–30s", "15–30 ث")),
-  card("bts", t("Behind the scenes", "كواليس"), t("How it's made, who makes it, and why it costs what it does.", "اتعمل إزاي، مين بيعمله، وليه سعره كده."), t("Trust and premium pricing", "الثقة والأسعار البريميوم"), t("20–45s", "20–45 ث")),
-  card("ad", t("Ad", "إعلان"), t("Built for paid: the hook in the first second, the offer by the fifth.", "معمول للإعلانات: الهوك في أول ثانية والعرض قبل الخامسة."), t("Sales campaigns", "حملات البيع"), t("6–15s", "6–15 ث")),
-  card("motion", t("Motion", "موشن"), t("Type, graphics and rhythm when there's nothing to film.", "كتابة وجرافيكس وإيقاع لما مفيش حاجة تتصوّر."), t("Offers, menus, announcements", "العروض والمنيوهات والإعلانات"), t("6–15s", "6–15 ث")),
-];
-
 export const DEFAULT_SETTINGS: SettingsValue = {
   general: {
     agencyName: "SCALE ADV",
@@ -152,7 +135,6 @@ export const DEFAULT_SETTINGS: SettingsValue = {
     text: t("We're hiring video editors and media buyers.", "بنعيّن مونتيرين وميديا باييرز."),
     href: "/careers",
   },
-  formats: DEFAULT_FORMAT_CARDS,
 };
 
 type ServiceSeed = ObjectType<typeof serviceFields>;

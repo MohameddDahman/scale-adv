@@ -8,7 +8,6 @@ import {
   vAnnouncement,
   vCareers,
   vContact,
-  vFormatCard,
   vGeneral,
   vHero,
   vSeo,
@@ -38,7 +37,6 @@ export const save = mutation({
       careers: v.optional(vCareers),
       seo: v.optional(vSeo),
       announcement: v.optional(vAnnouncement),
-      formats: v.optional(v.array(vFormatCard)),
     }),
   },
   handler: async (ctx, a) => {

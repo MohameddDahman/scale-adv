@@ -30,7 +30,8 @@ export async function loadSettings(ctx: QueryCtx): Promise<SettingsValue> {
     .unique();
   if (!doc) return DEFAULT_SETTINGS;
    
-  const { _id, _creationTime, key, ...rest } = doc;
+  // `formats` belonged to the removed "Formats that sell" section; leave it out of what the site gets.
+  const { _id, _creationTime, key, formats: _unused, ...rest } = doc;
   return { ...DEFAULT_SETTINGS, ...rest };
 }
 

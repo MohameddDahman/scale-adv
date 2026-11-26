@@ -56,15 +56,6 @@ const en = {
     body: "Six steps, one team. Every month runs this way, and every month starts from what the last one sold.",
     now: "Now",
   },
-  formats: {
-    tab: "Formats",
-    title: "Formats that sell.",
-    body: "Every product has a format that fits it. These are the ones we shoot most, each written, filmed and cut in-house.",
-    prev: "Previous formats",
-    next: "More formats",
-    bestFor: "Best for",
-    length: "Length",
-  },
   why: {
     tab: "Why SCALE",
     title: "Built to sell, not just to post.",

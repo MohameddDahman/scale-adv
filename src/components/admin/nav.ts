@@ -1,6 +1,5 @@
 import {
   Briefcase,
-  Cards,
   ChartLineUp,
   ClockCounterClockwise,
   FilmStrip,
@@ -49,7 +48,6 @@ export const NAV: { group: string | null; items: NavItem[] }[] = [
     group: "Website",
     items: [
       { href: "/admin/work", label: "Reels", icon: FilmStrip, perm: "content", keywords: "videos work portfolio" },
-      { href: "/admin/formats", label: "Format cards", icon: Cards, perm: "content", keywords: "formats that sell cards pictures thumbnails" },
       { href: "/admin/case-studies", label: "Case studies", icon: ChartLineUp, perm: "content", keywords: "results" },
       { href: "/admin/clients", label: "Clients", icon: Handshake, perm: "content", keywords: "brands logos roster" },
       { href: "/admin/services", label: "Services", icon: Stack, perm: "content" },
