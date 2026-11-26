@@ -2,24 +2,18 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { api } from "@convex/_generated/api";
-import type { FormatCardValue, SettingsValue, Text } from "@convex/lib/validators";
-import { ArrowDown, ArrowUp, FloppyDisk, Plus, Trash } from "@phosphor-icons/react";
-import { useState, type ReactNode } from "react";
-import { BilingualInput, emptyText, ImageField } from "../fields";
+import type { SettingsValue, Text } from "@convex/lib/validators";
+import { FloppyDisk } from "@phosphor-icons/react";
+import { useState } from "react";
+import { BilingualInput, emptyText, ImageField, PairList } from "../fields";
 import { errorMessage, useAdminMutation, useAdminQuery } from "../session";
-import { Badge, Button, Field, IconButton, Input, LoadingRows, PageHeader, Panel, Switch, TabPanel, Tabs, useFeedback } from "../ui";
+import { Badge, Button, Field, Input, LoadingRows, PageHeader, Panel, Switch, TabPanel, Tabs, useFeedback } from "../ui";
 
 type Section = keyof SettingsValue;
 
 const TABS: { value: Section; label: string; description: string }[] = [
   { value: "hero", label: "Homepage", description: "The headline and line under it. Keep line 2 short — it's the orange one." },
   { value: "stats", label: "Numbers", description: "Shown under the homepage buttons, on the Services page and on the Agency page, counting up. Type plain numbers like 18000000 and the site shows 18M+ (180000 shows 180K+). A row with no number is hidden." },
-  {
-    value: "formats",
-    label: "Format cards",
-    description:
-      "The cards under “Formats that sell” on the homepage and the Services page, in this order. Upload a tall picture for each card. A card without a picture shows the cover of a published reel of the same format, if there is one. Switch a card off to hide it without losing it.",
-  },
   { value: "contact", label: "Contact", description: "Empty fields are hidden on the site." },
   { value: "social", label: "Social", description: "Full links, e.g. https://www.instagram.com/scale_adv/ — empty ones are hidden." },
   { value: "careers", label: "Careers", description: "The careers page intro, what it's like to work here, and the hiring steps." },
@@ -130,51 +124,6 @@ export function SettingsPage() {
                 />
               ) : null}
 
-              {tab === "formats" ? (
-                <PairList<FormatCardValue>
-                  items={draft.formats}
-                  onChange={(formats) => set("formats", formats)}
-                  addLabel="Add card"
-                  make={() => ({
-                    key: `card-${Date.now().toString(36)}`,
-                    name: emptyText(),
-                    line: emptyText(),
-                    best: emptyText(),
-                    length: emptyText(),
-                    hidden: false,
-                  })}
-                  render={(card, update) => (
-                    <div className="space-y-3">
-                      <ImageField
-                        storageId={card.image}
-                        aspect="aspect-[9/16]"
-                        preset="poster"
-                        allowLink={false}
-                        onChange={(next) => {
-                          const { image: _old, ...rest } = card;
-                          update(next.storageId ? { ...rest, image: next.storageId } : rest);
-                        }}
-                      />
-                      <Field label="Title">
-                        <BilingualInput value={card.name} onChange={(name) => update({ ...card, name })} placeholder={{ en: "e.g. Street interview", ar: "مثلًا: لقاء شارع" }} />
-                      </Field>
-                      <Field label="Short line">
-                        <BilingualInput multiline rows={2} value={card.line} onChange={(line) => update({ ...card, line })} placeholder={{ en: "One short sentence", ar: "جملة قصيرة" }} />
-                      </Field>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <Field label="Best for">
-                          <BilingualInput value={card.best} onChange={(best) => update({ ...card, best })} placeholder={{ en: "Awareness and social proof", ar: "الانتشار وثقة الناس" }} />
-                        </Field>
-                        <Field label="Length">
-                          <BilingualInput value={card.length} onChange={(length) => update({ ...card, length })} placeholder={{ en: "15–30s", ar: "15–30 ث" }} />
-                        </Field>
-                      </div>
-                      <Switch checked={!card.hidden} onCheckedChange={(on) => update({ ...card, hidden: !on })} label="Show on the website" />
-                    </div>
-                  )}
-                />
-              ) : null}
-
               {tab === "contact" ? (
                 <div className="grid gap-5 sm:grid-cols-2">
                   <Field label="WhatsApp number" hint="Used for every “WhatsApp us” button. Local format is fine, e.g. 010 1234 5678.">
@@ -277,52 +226,6 @@ export function SettingsPage() {
           </Panel>
         </TabPanel>
       </Tabs>
-    </div>
-  );
-}
-
-function PairList<T>({
-  items,
-  onChange,
-  make,
-  render,
-  addLabel,
-}: {
-  items: T[];
-  onChange: (v: T[]) => void;
-  make: () => T;
-  render: (item: T, update: (v: T) => void) => ReactNode;
-  addLabel: string;
-}) {
-  const move = (i: number, d: number) => {
-    const j = i + d;
-    if (j < 0 || j >= items.length) return;
-    const next = [...items];
-    [next[i], next[j]] = [next[j], next[i]];
-    onChange(next);
-  };
-  return (
-    <div className="space-y-3">
-      {items.map((item, i) => (
-        <div key={i} className="flex items-start gap-2 rounded-[5px] border border-a-line p-3">
-          <span className="mt-2 w-5 font-mono text-[0.7rem] text-a-faint">{i + 1}</span>
-          <div className="min-w-0 flex-1">{render(item, (v) => onChange(items.map((x, j) => (j === i ? v : x))))}</div>
-          <div className="flex flex-col">
-            <IconButton label="Move up" onClick={() => move(i, -1)} disabled={i === 0}>
-              <ArrowUp className="size-3.5" aria-hidden />
-            </IconButton>
-            <IconButton label="Move down" onClick={() => move(i, 1)} disabled={i === items.length - 1}>
-              <ArrowDown className="size-3.5" aria-hidden />
-            </IconButton>
-          </div>
-          <IconButton label="Remove" tone="danger" onClick={() => onChange(items.filter((_, j) => j !== i))}>
-            <Trash className="size-4" aria-hidden />
-          </IconButton>
-        </div>
-      ))}
-      <Button size="sm" variant="ghost" icon={<Plus className="size-4" aria-hidden />} onClick={() => onChange([...items, make()])}>
-        {addLabel}
-      </Button>
     </div>
   );
 }

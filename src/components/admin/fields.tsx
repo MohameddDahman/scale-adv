@@ -4,7 +4,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import type { Question, Text } from "@convex/lib/validators";
 import { ArrowDown, ArrowUp, ImageSquare, LinkSimple, Plus, Trash, UploadSimple } from "@phosphor-icons/react";
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import { cn } from "@/lib/format";
 import { IMAGE_PRESETS, type ImagePreset } from "@/lib/image-compress";
 import { MediaPicker, Thumb, UploadProgress, uploadedMessage, useUploader } from "./media";
@@ -397,5 +397,52 @@ export function DateInput({ id, value, onChange }: { id?: string; value?: number
       value={str}
       onChange={(e) => onChange(e.target.value ? new Date(`${e.target.value}T23:59:00`).getTime() : undefined)}
     />
+  );
+}
+
+/** An ordered list of items with move up/down, remove and add. */
+export function PairList<T>({
+  items,
+  onChange,
+  make,
+  render,
+  addLabel,
+}: {
+  items: T[];
+  onChange: (v: T[]) => void;
+  make: () => T;
+  render: (item: T, update: (v: T) => void) => ReactNode;
+  addLabel: string;
+}) {
+  const move = (i: number, d: number) => {
+    const j = i + d;
+    if (j < 0 || j >= items.length) return;
+    const next = [...items];
+    [next[i], next[j]] = [next[j], next[i]];
+    onChange(next);
+  };
+  return (
+    <div className="space-y-3">
+      {items.map((item, i) => (
+        <div key={i} className="flex items-start gap-2 rounded-[5px] border border-a-line p-3">
+          <span className="mt-2 w-5 font-mono text-[0.7rem] text-a-faint">{i + 1}</span>
+          <div className="min-w-0 flex-1">{render(item, (v) => onChange(items.map((x, j) => (j === i ? v : x))))}</div>
+          <div className="flex flex-col">
+            <IconButton label="Move up" onClick={() => move(i, -1)} disabled={i === 0}>
+              <ArrowUp className="size-3.5" aria-hidden />
+            </IconButton>
+            <IconButton label="Move down" onClick={() => move(i, 1)} disabled={i === items.length - 1}>
+              <ArrowDown className="size-3.5" aria-hidden />
+            </IconButton>
+          </div>
+          <IconButton label="Remove" tone="danger" onClick={() => onChange(items.filter((_, j) => j !== i))}>
+            <Trash className="size-4" aria-hidden />
+          </IconButton>
+        </div>
+      ))}
+      <Button size="sm" variant="ghost" icon={<Plus className="size-4" aria-hidden />} onClick={() => onChange([...items, make()])}>
+        {addLabel}
+      </Button>
+    </div>
   );
 }
