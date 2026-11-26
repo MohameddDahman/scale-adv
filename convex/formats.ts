@@ -14,7 +14,16 @@ export const get = query({
   args: { token: v.string() },
   handler: async (ctx, { token }) => {
     await requireUser(ctx, token, "content");
-    return (await loadSettings(ctx)).formats;
+    const cards = (await loadSettings(ctx)).formats;
+    // What a card with no picture of its own shows on the site (Services page): the cover
+    // of the first published reel of the same format, in the Reels order.
+    const covers: Record<string, { url: string; reel: string }> = {};
+    for (const r of await ctx.db.query("reels").withIndex("by_order").collect()) {
+      if (!r.published || covers[r.format]) continue;
+      const url = (r.poster && (await ctx.storage.getUrl(r.poster))) || r.posterPath || null;
+      if (url) covers[r.format] = { url, reel: r.title.en || r.title.ar };
+    }
+    return { cards, covers };
   },
 });
 

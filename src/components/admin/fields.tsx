@@ -128,6 +128,7 @@ export function ImageField({
   hint,
   preset = "library",
   allowLink = true,
+  fallback,
 }: {
   storageId?: string;
   path?: string;
@@ -138,6 +139,8 @@ export function ImageField({
   preset?: ImagePreset;
   /** Offer "Link" (an address instead of an upload) only where a link can be stored. */
   allowLink?: boolean;
+  /** What the site shows while there's no image of its own (e.g. a reel cover), with a note saying where it comes from. */
+  fallback?: { src: string; badge: string; note: string };
 }) {
   const urls = useStorageUrls([storageId]);
   const { upload, progress } = useUploader();
@@ -145,7 +148,9 @@ export function ImageField({
   const [picker, setPicker] = useState(false);
   const [linkMode, setLinkMode] = useState(false);
   const [localUrl, setLocalUrl] = useState<string | null>(null);
-  const preview = (storageId && (urls[storageId] ?? localUrl)) || path || null;
+  const own = (storageId && (urls[storageId] ?? localUrl)) || path || null;
+  const borrowed = !own && fallback ? fallback : null;
+  const preview = own ?? borrowed?.src ?? null;
 
   return (
     <div className="flex flex-wrap items-start gap-4">
@@ -157,6 +162,11 @@ export function ImageField({
             <ImageSquare className="size-7" aria-hidden />
           </span>
         )}
+        {borrowed ? (
+          <span className="absolute inset-x-1.5 bottom-1.5 rounded-[3px] bg-black/75 px-1.5 py-0.5 text-center text-[0.66rem] font-semibold text-white">
+            {borrowed.badge}
+          </span>
+        ) : null}
       </div>
       <div className="min-w-48 flex-1 space-y-2">
         <div className="flex flex-wrap gap-2">
@@ -193,7 +203,7 @@ export function ImageField({
               Link
             </Button>
           ) : null}
-          {preview ? (
+          {own ? (
             <Button size="sm" variant="ghost" className="text-a-danger" onClick={() => onChange({ storageId: undefined, path: undefined })}>
               Remove
             </Button>
@@ -208,6 +218,7 @@ export function ImageField({
             dir="ltr"
           />
         ) : null}
+        {borrowed ? <p className="text-[0.76rem] text-a-text">{borrowed.note}</p> : null}
         {hint ? <p className="text-[0.76rem] text-a-muted">{hint}</p> : null}
         <p className="text-[0.72rem] text-a-faint">{IMAGE_PRESETS[preset].note}</p>
       </div>

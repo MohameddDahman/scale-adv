@@ -19,9 +19,10 @@ export function FormatCardsPage() {
 
   // First load: copy the saved cards into an editable draft (derived state, no effect needed).
   if (remote && !draft) {
-    setDraft(remote);
-    setBaseline(JSON.stringify(remote));
+    setDraft(remote.cards);
+    setBaseline(JSON.stringify(remote.cards));
   }
+  const covers = remote?.covers ?? {};
   if (!draft) return <LoadingRows rows={8} />;
   const dirty = JSON.stringify(draft) !== baseline;
 
@@ -82,6 +83,15 @@ export function FormatCardsPage() {
                   preset="poster"
                   allowLink={false}
                   hint="The card's picture. Tall photos (9:16) fill it best."
+                  fallback={
+                    covers[card.key]
+                      ? {
+                          src: covers[card.key].url,
+                          badge: "From reel",
+                          note: `On the site now: the cover of the reel “${covers[card.key].reel}”. Upload a picture to use your own instead.`,
+                        }
+                      : undefined
+                  }
                   onChange={(next) => {
                     const { image: _old, ...rest } = card;
                     update(next.storageId ? { ...rest, image: next.storageId } : rest);
