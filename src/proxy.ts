@@ -34,6 +34,9 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Everything except Next internals, API routes, the dashboard and files with an extension.
-  matcher: ["/((?!_next|api|admin|.*\\..*).*)"],
+  // The proxy runs as a server function on every path it matches, so it only
+  // matches paths it can act on: everything except Next internals, API routes,
+  // the dashboard, files with an extension, and paths that already start with
+  // a locale (those return untouched above).
+  matcher: ["/((?!_next|api|admin|.*\\..*|(?:en|ar)(?:/|$)).*)"],
 };
