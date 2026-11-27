@@ -3,7 +3,7 @@ import { internalMutation, query } from "./_generated/server";
 import { makeCrud } from "./lib/crud";
 import { DEFAULT_REELS, PLACEHOLDER_REEL_POSTERS } from "./lib/defaults";
 import { sha256Hex } from "./lib/sha256";
-import { fail, normalizeUrl } from "./lib/util";
+import { cleanImageRef, fail, normalizeUrl } from "./lib/util";
 import { REEL_CATEGORIES, REEL_FORMATS, reelFields } from "./lib/validators";
 
 export const { list, get, create, update, remove, reorder, setPublished, duplicate } = makeCrud({
@@ -22,6 +22,13 @@ export const { list, get, create, update, remove, reorder, setPublished, duplica
     if (d.videoUrl?.trim() && !videoUrl) fail("Enter a valid video link.", "videoUrl");
     if (d.socialUrl?.trim() && !socialUrl) fail("Enter a valid post link.", "socialUrl");
     if (d.views !== undefined && d.views < 0) fail("Views can't be negative.", "views");
+    // The cover's "Link" box takes a picture address only. An Instagram/TikTok post pasted there
+    // (sometimes glued onto the old path) would break the cover, so it's refused with a pointer.
+    const posterPath = cleanImageRef(d.posterPath) ?? undefined;
+    const postLink = !!posterPath && /^https:\/\/(www\.|m\.)?(instagram|tiktok|facebook)\.com\//i.test(posterPath);
+    if ((d.posterPath?.trim() && posterPath !== d.posterPath.trim()) || postLink) {
+      fail("The cover link isn't a picture address. Use an https:// link to an image or a site path like /work/cover.webp. A link to the Instagram or TikTok post goes in “Post link”.", "posterPath");
+    }
     // An uploaded video only counts while the link still points at it; a pasted link replaces it.
     const uploaded = !!d.videoPublicId && !!videoUrl?.includes(d.videoPublicId);
     return {
@@ -29,6 +36,7 @@ export const { list, get, create, update, remove, reorder, setPublished, duplica
       category,
       videoUrl,
       socialUrl,
+      posterPath,
       videoPublicId: uploaded ? d.videoPublicId : undefined,
       videoBytes: uploaded ? d.videoBytes : undefined,
       videoDuration: uploaded ? d.videoDuration : undefined,

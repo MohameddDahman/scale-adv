@@ -50,6 +50,24 @@ export function normalizeUrl(value: string | undefined): string | undefined {
   return isUrl(withProto) ? withProto : undefined;
 }
 
+/**
+ * A picture address typed in the dashboard (the "Link" box under an image): a
+ * site path like /work/cover.webp, or an https link. Returns it tidied, or
+ * null when it can't be one. A link pasted onto the end of a path
+ * ("/work/a.webphttps://instagram.com/…") is cut off, so a slip shows the
+ * right picture instead of breaking the page.
+ */
+export function cleanImageRef(raw: string | undefined | null): string | null {
+  const value = raw?.trim();
+  if (!value) return null;
+  if (value.startsWith("/")) {
+    const path = value.split(/https?:\/\/|[\s?#]/)[0];
+    return /^\/[\w\-./%]+$/.test(path) ? path : null;
+  }
+  if (/^https:\/\/\S+$/i.test(value) && isUrl(value)) return value;
+  return null;
+}
+
 /** Social profile links from a form: each one checked, no repeats, six at most. */
 export function normalizeSocials(values: string[] | undefined): string[] {
   const out: string[] = [];

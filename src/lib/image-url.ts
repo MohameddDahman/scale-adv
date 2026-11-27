@@ -10,12 +10,16 @@ const CONVEX_FILE = /^https:\/\/[a-z0-9-]+\.convex\.cloud\/api\/storage\//i;
 
 export const isConvexFile = (src: string) => CONVEX_FILE.test(src);
 
+/** A file in /public: a plain path with no query string, spaces or pasted-on link (next/image refuses those and fails the build). */
+const LOCAL_FILE = /^\/[\w\-./%]+$/;
+
 /**
  * True when next/image can resize and cache this source: files in /public
  * and Convex storage over https. Anything else (a pasted link to another
- * site, or the local development backend) is shown as-is.
+ * site, an odd path typed in the dashboard, or the local development
+ * backend) is shown as-is, so a typo can't break a page.
  */
-export const canOptimize = (src: string) => src.startsWith("/") || isConvexFile(src);
+export const canOptimize = (src: string) => LOCAL_FILE.test(src) || isConvexFile(src);
 
 /** Widths allowed by images.deviceSizes / images.imageSizes in next.config.ts. */
 export type ImageWidth = 256 | 384 | 640 | 750 | 828 | 1080 | 1200 | 1920;

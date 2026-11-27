@@ -21,6 +21,7 @@ import {
   shapeTestimonial,
   type UrlResolver,
 } from "./lib/shape";
+import { cleanImageRef } from "./lib/util";
 import type { SettingsValue } from "./lib/validators";
 
 export async function loadSettings(ctx: QueryCtx): Promise<SettingsValue> {
@@ -41,7 +42,8 @@ function resolver(ctx: QueryCtx): UrlResolver {
       const found = await ctx.storage.getUrl(id as Id<"_storage">);
       if (found) return found;
     }
-    return fallback ?? null;
+    // Paths typed in the dashboard may carry a pasted-on link; tidy them so a slip can't break a page.
+    return cleanImageRef(fallback);
   };
 }
 
